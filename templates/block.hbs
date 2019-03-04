@@ -1,0 +1,107 @@
+<div>
+    Displaying {{details.incidents.length}} related incidents
+</div>
+{{#each details.incidents as |incident incidentIndex|}}
+  <ul class="nav nav-tabs">
+      <li class="nav-item">
+          <a {{action "changeTab" "incident" incidentIndex}} class="nav-link {{if (or (eq incident.__activeTab "incident")(not incident.__activeTab)) "active"}}" href="#">Incident</a>
+      </li>
+      <li class="nav-item">
+          <a {{action "changeTab" "notes" incidentIndex}} class="nav-link {{if (eq incident.__activeTab "notes") "active"}}" href="#">Notes</a>
+      </li>
+  </ul>
+
+  {{#if (eq incident.__activeTab "notes")}}
+    <span {{action "forceReloadComments" incidentIndex}} class="reload-comments p-action">reload notes</span>
+  {{/if}}
+
+  {{#if (or (eq incident.__activeTab "incident")(not incident.__activeTab))}}
+      <div class="tab-container">
+          <div class="view-in-link">
+              <a class="p-link" href="{{details.host}}/#incidents/{{incident.obj_id}}">
+                  View in Resilient {{fa-icon "external-link-square" fixedWidth=true class="external-icon"}}
+              </a>
+          </div>
+          <div class="p-key incident-description">{{incident.result.description.content}}</div>
+          {{#each incidentFields as |fieldObj|}}
+              {{#if (get incident fieldObj.property)}}
+                  {{#if (eq fieldObj.type "date")}}
+                      <div>
+                          <span class="p-key">{{fieldObj.name}}: </span>
+                          <span class="p-value">{{moment-format (get incident fieldObj.property) 'MM/DD/YYYY' timeZone=timezone}}</span>
+                      </div>
+                  {{else if (eq fieldObj.type "block")}}
+                      <div>
+                          <span class="p-key">{{fieldObj.name}}: </span>
+                          <div class="p-key">{{get incident fieldObj.property}}</div>
+                      </div>
+                  {{else}}
+                      <div>
+                          <span class="p-key">{{fieldObj.name}}: </span>
+                          <span class="p-value">{{get incident fieldObj.property}}</span>
+                      </div>
+                  {{/if}}
+              {{/if}}
+          {{/each}}
+      </div>
+  {{/if}}
+
+  {{#if (eq incident.__activeTab "notes")}}
+      <div class="tab-container">
+          {{#if incident.__loadingNotes}}
+              <div class="tab-loading-indicator">
+                  {{fa-icon "spinner-third" spin=true}} Loading Notes
+              </div>
+          {{else}}
+              <div class="post-comment-container">
+                  <div>
+                      {{textarea value=incident.__note rows="3"}}
+                  </div>
+                  <div class="post-comment-button-container d-flex align-items-center justify-content-between">
+                      <div class="p-footnote">
+                          Displaying {{incident.comments.length}} of {{incident.totalComments}} most recent notes.
+                      </div>
+                      <div>
+                          <button {{action "createComment" incident.obj_id incidentIndex}} type="submit" disabled={{incident.__postButtonDisabled}}>
+                              Post
+                          </button>
+                      </div>
+                  </div>
+                  {{#if incident.__postNoteError}}
+                      <div class="p-red">
+                          {{fa-icon "exclamation-triangle" fixedWidth=true}} {{incident.__postNoteError}}
+                      </div>
+                  {{/if}}
+              </div>
+
+              {{#each incident.comments as |comment|}}
+                  <div class="comment-block">
+                      <div class="comment-header">
+                          <span class="comment-username">{{comment.user_name}}</span> added a note on {{moment-format comment.create_date timeZone=timeZone}}
+                      </div>
+                      <div class="comment-body">
+                        {{{comment.text}}}
+                      </div>
+                      {{#if (gt comment.children.length 0)}}
+                          {{!-- these are responses to the top level comment --}}
+                          {{#each comment.children as |childComment|}}
+                              <div class="child-comment">
+                                  <div class="comment-header">
+                                      <span class="comment-username">{{childComment.user_name}}</span> added a note on {{moment-format childComment.create_date timeZone=timeZone}}
+                                  </div>
+                                  <div class="comment-body">
+                                      {{{childComment.text}}}
+                                  </div>
+                                  {{#if (gt childComment.children.length 0)}}
+                                      <div class="p-footnote additional-responses">{{fa-icon "info-circle"}} Additional responses must be viewed in Resilient.</div>
+                                  {{/if}}
+                              </div>
+                          {{/each}}
+                      {{/if}}
+                  </div>
+              {{/each}}
+          {{/if}}
+
+      </div>
+  {{/if}}
+{{/each}}
