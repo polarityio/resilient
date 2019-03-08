@@ -1,9 +1,9 @@
-# Polarity Resilient Integration
-The Polarity - Resilient integration searches resilient for related incidents, as well as allows users to post notes about that incidents from the overlay window.
+# Polarity IBM Resilient Integration
+The Polarity - IBM Resilient integration searches the Resilient Incident Response Platform for incident related to indicators on your screen.  Information about the incident is displayed via the Polarity Overlay Window.
 
-![image](https://user-images.githubusercontent.com/22529325/45298748-793fe900-b4d7-11e8-8c72-a4e58aeed43a.png)
+![984b494e-b0da-400f-8a7d-245b23de6473](https://user-images.githubusercontent.com/306319/54000286-d928ec80-4114-11e9-90d3-1038d4297602.GIF)
 
-To learn more about Resilient, please visit the [official website](https://www.resilientsystems.com/).
+To learn more about IBM Resilient, please visit the [official website](https://www.ibm.com/us-en/marketplace/resilient-incident-response-platform).
 
 > Note that this integration is currently in Beta.
 
