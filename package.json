@@ -1,19 +1,10 @@
 {
   "main": "./integration.js",
-  "name": "Resilient",
+  "name": "IBM Resilient",
   "version": "3.0.0-beta",
   "private": true,
   "dependencies": {
-    "request": "^2.83",
-    "lodash": "^4.17",
-    "async": "^2.5"
-  },
-  "scripts": {
-    "dev": "./sync.js"
-  },
-  "devDependencies": {
-    "node-ssh": "^5.1.2",
-    "node-watch": "^0.5.8",
-    "scp2": "^0.5.0"
+    "request": "^2.88",
+    "async": "^2.6"
   }
 }
