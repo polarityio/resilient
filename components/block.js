@@ -3,11 +3,6 @@
 polarity.export = PolarityComponent.extend({
   details: Ember.computed.alias('block.data.details'),
   incidentFields: [
-    // {
-    //   property: 'result.description.content',
-    //   name: 'Description',
-    //   type: 'block'
-    // },
     {
       property: 'inc_name',
       name: 'Name of Incident',
@@ -24,12 +19,7 @@ polarity.export = PolarityComponent.extend({
       type: 'string'
     },
     {
-      property: 'score',
-      name: 'Score',
-      type: 'string'
-    },
-    {
-      property: 'obj_created_date',
+      property: 'result.create_date',
       name: 'Created Date',
       type: 'date'
     },
@@ -45,10 +35,9 @@ polarity.export = PolarityComponent.extend({
     },
     {
       property: 'match_field_name',
-      name: 'Field Matched',
+      name: 'Matched Field Name',
       type: 'string'
     },
-
     {
       property: 'result.phase_id.name',
       name: 'Phase Name',
