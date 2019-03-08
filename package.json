@@ -1,0 +1,10 @@
+{
+  "main": "./integration.js",
+  "name": "IBM Resilient",
+  "version": "3.0.0-beta",
+  "private": true,
+  "dependencies": {
+    "request": "^2.88",
+    "async": "^2.6"
+  }
+}
