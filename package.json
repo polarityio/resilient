@@ -1,6 +1,6 @@
 {
   "main": "./integration.js",
-  "name": "IBM Resilient",
+  "name": "IBMResilient",
   "version": "3.0.0-beta",
   "private": true,
   "dependencies": {
