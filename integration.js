@@ -146,10 +146,12 @@ function createToken(options, cb) {
 function doLookup(entities, options, cb) {
   let lookupResults = [];
 
+  const searchTypes = options.searchTypes.map((type) => type.value);
+
   async.each(
     entities,
     (entityObj, next) => {
-      _lookupEntity(entityObj, options, function(err, result) {
+      _lookupEntity(entityObj, options, searchTypes, function(err, result) {
         if (err) {
           next(err);
         } else {
@@ -165,15 +167,15 @@ function doLookup(entities, options, cb) {
   );
 }
 
-function _lookupEntity(entityObj, options, cb) {
+function _lookupEntity(entityObj, options, searchTypes, cb) {
   let requestOptions = {
     uri: `${options.url}/rest/search_ex`,
     method: 'POST',
     body: {
       org_id: options.orgId,
-      query: entityObj.value,
+      query: `"${entityObj.value}"`,
       min_required_results: 0,
-      types: ['incident']
+      types: searchTypes
     },
     json: true
   };

@@ -2,10 +2,26 @@
 
 polarity.export = PolarityComponent.extend({
   details: Ember.computed.alias('block.data.details'),
+
   incidentFields: [
+    {
+      property: 'type_id',
+      name: 'Result Type',
+      type: 'string'
+    },
+    {
+      property: 'result.name',
+      name: 'Name',
+      type: 'string'
+    },
     {
       property: 'inc_name',
       name: 'Name of Incident',
+      type: 'string'
+    },
+    {
+      property: 'result.active',
+      name: 'Active',
       type: 'string'
     },
     {
@@ -72,6 +88,11 @@ polarity.export = PolarityComponent.extend({
       property: 'result.nist_attack_vectors.name',
       name: 'Attack Vectors',
       type: 'string'
+    },
+    {
+      property: 'result.instructions.content',
+      name: 'Instructions',
+      type: 'block'
     }
   ],
   timezone: Ember.computed('Intl', function() {
