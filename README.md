@@ -21,6 +21,9 @@ The password for the provided username you want the integration to authenticate 
 ### Resilient Org Id
 Your Resilient Org ID. You can find your resilient org id by navigating to Administrator settings then clicking on the Organization tab. Please note you must be a Resilient Administrator in order to access your Org Id.
 
+### Types to Search
+
+The types of data that should be searched.  Options include "Incidents", "Notes", "Artifacts", and "Tasks"
 
 ## Polarity
 

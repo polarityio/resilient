@@ -1,10 +1,10 @@
 {
   "main": "./integration.js",
   "name": "IBMResilient",
-  "version": "3.0.0-beta",
+  "version": "3.1.0-beta",
   "private": true,
   "dependencies": {
     "request": "^2.88",
-    "async": "^2.6"
+    "async": "^3.1"
   }
 }

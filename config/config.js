@@ -74,10 +74,10 @@ module.exports = {
     proxy: '',
     /**
      * If set to false, the integeration will ignore SSL errors.  This will allow the integration to connect
-     * to STAXX servers without valid SSL certificates.  Please note that we do NOT recommending setting this
+     * to servers without valid SSL certificates.  Please note that we do NOT recommending setting this
      * to false in a production environment.
      */
-    rejectUnauthorized: false
+    rejectUnauthorized: true
   },
   logging: {
     level: 'info' //trace, debug, info, warn, error, fatal
@@ -125,6 +125,39 @@ module.exports = {
       type: 'text',
       userCanEdit: true,
       adminOnly: false
+    },
+    {
+      key: 'searchTypes',
+      name: 'Types to Search',
+      description: 'Choose the data types that should be searched',
+      default: [
+        {
+          value: 'incident',
+          display: 'Incidents'
+        }
+      ],
+      type: 'select',
+      options: [
+        {
+          value: 'incident',
+          display: 'Incidents'
+        },
+        {
+          value: 'task',
+          display: 'Tasks'
+        },
+        {
+          value: 'note',
+          display: 'Notes'
+        },
+        {
+          value: 'artifact',
+          display: 'Artifacts'
+        }
+      ],
+      multiple: true,
+      userCanEdit: false,
+      adminOnly: true
     }
   ]
 };

@@ -1,10 +1,10 @@
 <div>
-    Displaying {{details.incidents.length}} related incidents
+    Displaying {{details.incidents.length}} related results
 </div>
 {{#each details.incidents as |incident incidentIndex|}}
   <ul class="nav nav-tabs">
       <li class="nav-item">
-          <a {{action "changeTab" "incident" incidentIndex}} class="nav-link {{if (or (eq incident.__activeTab "incident")(not incident.__activeTab)) "active"}}" href="#">Incident</a>
+          <a {{action "changeTab" "incident" incidentIndex}} class="nav-link {{if (or (eq incident.__activeTab "incident")(not incident.__activeTab)) "active"}}" href="#">{{capitalize incident.type_id}}</a>
       </li>
       <li class="nav-item">
           <a {{action "changeTab" "notes" incidentIndex}} class="nav-link {{if (eq incident.__activeTab "notes") "active"}}" href="#">Notes</a>
@@ -16,11 +16,26 @@
   {{/if}}
 
   {{#if (or (eq incident.__activeTab "incident")(not incident.__activeTab))}}
+
       <div class="tab-container">
           <div class="view-in-link">
-              <a class="p-link" href="{{details.host}}/#incidents/{{incident.obj_id}}">
-                  View in Resilient {{fa-icon "external-link-square" fixedWidth=true class="external-icon"}}
-              </a>
+              {{#if (eq incident.type_id "task")}}
+                  <a class="p-link" href="{{details.host}}/#incidents/{{incident.inc_id}}?task_id={{incident.obj_id}}">
+                      View in Resilient {{fa-icon "external-link-square" fixedWidth=true class="external-icon"}}
+                  </a>
+              {{else if (eq incident.type_id "artifact")}}
+                  <a class="p-link" href="{{details.host}}/#incidents/{{incident.inc_id}}?tab=artifacts">
+                      View in Resilient {{fa-icon "external-link-square" fixedWidth=true class="external-icon"}}
+                  </a>
+              {{else if (eq incident.type_id "note")}}
+                  <a class="p-link" href="{{details.host}}/#incidents/{{incident.inc_id}}?tab=notes">
+                      View in Resilient {{fa-icon "external-link-square" fixedWidth=true class="external-icon"}}
+                  </a>
+              {{else}}
+                  <a class="p-link" href="{{details.host}}/#incidents/{{incident.obj_id}}">
+                      View in Resilient {{fa-icon "external-link-square" fixedWidth=true class="external-icon"}}
+                  </a>
+              {{/if}}
           </div>
           <div class="p-key incident-description">{{incident.result.description.content}}</div>
           {{#each incidentFields as |fieldObj|}}
