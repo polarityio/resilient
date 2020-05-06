@@ -2,26 +2,100 @@
 
 polarity.export = PolarityComponent.extend({
   details: Ember.computed.alias('block.data.details'),
-
+  searchMatchFields: {
+    artifact: [
+      {
+        property: 'result.value',
+        name: 'Value',
+        type: 'string'
+      },
+      {
+        property: 'result.type.name',
+        name: 'Artifact Type',
+        type: 'string'
+      },
+      {
+        property: 'result.created',
+        name: 'Created',
+        type: 'date'
+      },
+      {
+        property: 'result.description.content',
+        name: 'Description',
+        type: 'block'
+      }
+    ],
+    task: [
+      {
+        property: 'result.name',
+        name: 'Name',
+        type: 'string'
+      },
+      {
+        property: 'result.active',
+        name: 'Active',
+        type: 'string'
+      },
+      {
+        property: 'result.closed_date',
+        name: 'Closed Date',
+        type: 'date'
+      },
+      {
+        property: 'result.due_date',
+        name: 'Due Date',
+        type: 'date'
+      },
+      {
+        property: 'result.instructions.content',
+        name: 'Instructions',
+        type: 'block'
+      }
+    ],
+    incident: [
+      {
+        property: 'match_field_name',
+        name: 'Match Field Name',
+        type: 'string'
+      }
+    ],
+    note: [
+      {
+        property: 'result.user_id.display_name',
+        name: 'Author',
+        type: 'string'
+      },
+      {
+        property: 'result.create_date',
+        name: 'Created Date',
+        type: 'date'
+      },
+      {
+        property: 'result.text.content',
+        name: 'Content',
+        type: 'block'
+      }
+    ]
+  },
   incidentFields: [
     {
-      property: 'type_id',
-      name: 'Result Type',
-      type: 'string'
+      property: 'result.discovered_date',
+      name: 'Discovered Date',
+      type: 'date'
     },
     {
-      property: 'result.name',
-      name: 'Name',
-      type: 'string'
+      property: 'result.create_date',
+      name: 'Created Date',
+      type: 'date'
     },
     {
-      property: 'inc_name',
-      name: 'Name of Incident',
-      type: 'string'
+      property: 'result.due_date',
+      name: 'Due Date',
+      type: 'date'
     },
     {
-      property: 'result.active',
-      name: 'Active',
+      property: 'result.confirmed',
+      name: 'Confirmed',
       type: 'string'
     },
     {
@@ -35,47 +109,7 @@ polarity.export = PolarityComponent.extend({
       type: 'string'
     },
     {
-      property: 'result.create_date',
-      name: 'Created Date',
-      type: 'date'
-    },
-    {
-      property: 'result.discovered_date',
-      name: 'Date Discovered',
-      type: 'date'
-    },
-    {
-      property: 'result.due_date',
-      name: 'Date Due',
-      type: 'date'
-    },
-    {
-      property: 'match_field_name',
-      name: 'Matched Field Name',
-      type: 'string'
-    },
-    {
-      property: 'result.phase_id.name',
-      name: 'Phase Name',
-      type: 'string'
-    },
-    {
-      property: 'result.add',
-      name: 'Address',
-      type: 'string'
-    },
-    {
-      property: 'result.city',
-      name: 'City',
-      type: 'string'
-    },
-    {
-      property: 'result.exposure_type_id.name',
-      name: 'Exposure Type',
-      type: 'string'
-    },
-    {
-      property: 'result.user_fname',
+      property: 'result.creator.display_name',
       name: 'Creator Name',
       type: 'string'
     },
@@ -85,14 +119,19 @@ polarity.export = PolarityComponent.extend({
       type: 'string'
     },
     {
-      property: 'result.nist_attack_vectors.name',
-      name: 'Attack Vectors',
+      property: 'result.phase_id.name',
+      name: 'Phase',
       type: 'string'
     },
     {
-      property: 'result.instructions.content',
-      name: 'Instructions',
-      type: 'block'
+      property: 'result.plan_status_human',
+      name: 'Status',
+      type: 'string'
+    },
+    {
+      property: 'result.resolution_id.name',
+      name: 'Resolution Status',
+      type: 'string'
     }
   ],
   timezone: Ember.computed('Intl', function() {

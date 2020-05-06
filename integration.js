@@ -12,6 +12,8 @@ const MAX_TOP_LEVEL_COMMENTS = 15;
 let Logger;
 let requestWithDefaults;
 let authenticatedRequest;
+let previousDomainRegexAsString = '';
+let domainBlacklistRegex = null;
 
 function startup(logger) {
   Logger = logger;
@@ -85,6 +87,20 @@ function startup(logger) {
   };
 }
 
+function _setupRegexBlacklists(options) {
+  if (options.domainBlacklistRegex !== previousDomainRegexAsString && options.domainBlacklistRegex.length === 0) {
+    Logger.debug('Removing Domain Blacklist Regex Filtering');
+    previousDomainRegexAsString = '';
+    domainBlacklistRegex = null;
+  } else {
+    if (options.domainBlacklistRegex !== previousDomainRegexAsString) {
+      previousDomainRegexAsString = options.domainBlacklistRegex;
+      Logger.debug({ domainBlacklistRegex: previousDomainRegexAsString }, 'Modifying Domain Blacklist Regex');
+      domainBlacklistRegex = new RegExp(options.domainBlacklistRegex, 'i');
+    }
+  }
+}
+
 function getTokenFromCache(options) {
   return tokenCache.get(options.username + options.password);
 }
@@ -144,6 +160,8 @@ function createToken(options, cb) {
 }
 
 function doLookup(entities, options, cb) {
+  _setupRegexBlacklists(options);
+
   let lookupResults = [];
 
   const searchTypes = options.searchTypes.map((type) => type.value);
@@ -151,6 +169,26 @@ function doLookup(entities, options, cb) {
   async.each(
     entities,
     (entityObj, next) => {
+      if (options.blacklist.toLowerCase().includes(entityObj.value.toLowerCase())) {
+        Logger.debug({entity: entityObj.value}, 'Ignored BlackListed Entity Lookup');
+        lookupResults.push({
+          entity: entityObj,
+          data: null
+        });
+        return next(null);
+      } else if (entityObj.isDomain) {
+        if (domainBlacklistRegex !== null) {
+          if (domainBlacklistRegex.test(entityObj.value)) {
+            Logger.debug({domain: entityObj.value}, 'Ignored BlackListed Domain Lookup');
+            lookupResults.push({
+              entity: entityObj,
+              data: null
+            });
+            return next(null);
+          }
+        }
+      }
+
       _lookupEntity(entityObj, options, searchTypes, function(err, result) {
         if (err) {
           next(err);
@@ -173,9 +211,36 @@ function _lookupEntity(entityObj, options, searchTypes, cb) {
     method: 'POST',
     body: {
       org_id: options.orgId,
-      query: `"${entityObj.value}"`,
+      // Note that putting the search value in quotes does not result in an exact match search
+      // The search is always a full text search
+      query: entityObj.value,
       min_required_results: 0,
-      types: searchTypes
+      types: searchTypes,
+      filters: {
+        artifact: [
+          // note that this filter only applies to type artifact and will not effect other types
+          {
+            conditions: [
+              {
+                method: 'equals',
+                field_name: 'value',
+                value: entityObj.value
+              }
+            ]
+          }
+        ],
+        note: [
+          {
+            conditions: [
+              {
+                method: 'contains',
+                field_name: 'text',
+                value: entityObj.value
+              }
+            ]
+          }
+        ]
+      }
     },
     json: true
   };
@@ -190,6 +255,7 @@ function _lookupEntity(entityObj, options, searchTypes, cb) {
 
     Logger.trace({ data: body }, 'Logging Body Data of the sha256');
 
+
     if (!body || !body.results || body.results.length === 0) {
       cb(null, {
         entity: entityObj,
@@ -198,19 +264,72 @@ function _lookupEntity(entityObj, options, searchTypes, cb) {
       return;
     }
 
-    // The lookup results returned is an array of lookup objects with the following format
+    // incidentSummaries: Array of incident summary objects which contain the inc_id, and inc_name properties
+    // incidentIds: Array of incident id as numbers
+    // matchesByIncidentId: object keyed on incident id. Each id points to an array of match objects
+    //                      each match object has a `type_id` property
+    const { incidentSummaries, incidentIds, matchesByIncidentId } = _getUniqueIncidentSearchResults(body.results);
+
     cb(null, {
       entity: entityObj,
       data: {
-        summary: [],
+        summary: _getSummaryTags(incidentSummaries),
         details: {
           comments: [], // comments are loaded via onMessage
-          incidents: body.results,
+          incidentIds,
+          matchesByIncidentId,
+          incidents: [],
           host: options.url
         }
       }
     });
   });
+}
+
+/**
+ * Given the search results returns a unique list of incident objects.  Note that the search results
+ * can actually return different types because a search can return an artifact, task, incident, or note.
+ * Each of these objects has its own unique properties but all of them share a `inc_name` and `inc_id` property
+ * which is what we use to construct the tags.
+ *
+ * @param searchResults
+ * @returns {{searchResultsById: {}, incidentIds: any[]}}
+ * @private
+ */
+function _getUniqueIncidentSearchResults(searchResults) {
+  let uniqueIncidentIds = new Set();
+  let uniqueIncidents = {};
+  let matchesByIncidentId = {};
+  let incidentSummaries = [];
+
+  searchResults.forEach((result) => {
+    const incidentId = result.inc_id;
+    uniqueIncidentIds.add(incidentId);
+    uniqueIncidents[incidentId] = result;
+    if(!Array.isArray(matchesByIncidentId[incidentId])){
+      matchesByIncidentId[incidentId] = [];
+    }
+    matchesByIncidentId[incidentId].push(result);
+  });
+
+  const incidentIds = Array.from(uniqueIncidentIds);
+  incidentIds.forEach((incidentId) => {
+    const incidentSearchResult = uniqueIncidents[incidentId]
+    incidentSummaries.push({
+      inc_id: incidentSearchResult.inc_id,
+      inc_name: incidentSearchResult.inc_name
+    });
+  });
+
+  return { incidentSummaries, incidentIds, matchesByIncidentId };
+}
+
+function _getSummaryTags(incidents) {
+  const tags = [];
+  incidents.forEach((incident) => {
+    tags.push(`[#${incident.inc_id}] ${incident.inc_name}`);
+  });
+  return tags;
 }
 
 function _handleRestErrors(response, body) {
@@ -446,9 +565,60 @@ function onMessage(payload, options, cb) {
   }
 }
 
+function onDetails(resultObject, options, cb) {
+  let requestOptions = {
+    uri: `${options.url}/rest/search_ex`,
+    method: 'POST',
+    body: {
+      org_id: options.orgId,
+      // Note that putting the search value in quotes does not result in an exact match search
+      // The search is always a full text search
+      query: resultObject.data.details.incidentIds.join(' '),
+      min_required_results: 0,
+      types: ['incident'],
+      "filters": {
+        "incident": [
+          {
+            "conditions": [
+              {
+                "method": "in",
+                "field_name": "id",
+                "value": resultObject.data.details.incidentIds
+              }
+            ]
+          }
+        ]
+      }
+    },
+    json: true
+  };
+
+  authenticatedRequest(options, requestOptions, (err, response, body) => {
+    if (err) {
+      Logger.trace({ err: err, response: response }, 'Error in _lookupEntity() requestWithDefault');
+      return cb(err);
+    }
+
+    const results = body.results.map((result) => {
+      if(result.result.plan_status === 'A'){
+        result.result.plan_status_human = 'Active';
+      }
+      if(result.result.plan_status === 'C'){
+        result.result.plan_status_human = 'Closed';
+      }
+      return result;
+    })
+
+    resultObject.data.details.incidents = results;
+    Logger.trace({ resultObject }, 'onDetails result');
+    cb(null, resultObject.data);
+  });
+}
+
 module.exports = {
-  doLookup: doLookup,
-  startup: startup,
-  onMessage: onMessage,
-  validateOptions: validateOptions
+  doLookup,
+  startup,
+  onMessage,
+  validateOptions,
+  onDetails
 };
