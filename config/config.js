@@ -48,14 +48,14 @@ module.exports = {
       file: './templates/block.hbs'
     }
   },
-  summary: {
-    component: {
-      file: './components/summary.js'
-    },
-    template: {
-      file: './templates/summary.hbs'
-    }
-  },
+  // summary: {
+  //   component: {
+  //     file: './components/summary.js'
+  //   },
+  //   template: {
+  //     file: './templates/summary.hbs'
+  //   }
+  // },
   request: {
     // Provide the path to your certFile. Leave an empty string to ignore this option.
     // Relative paths are relative to the integration's root directory
@@ -156,6 +156,25 @@ module.exports = {
         }
       ],
       multiple: true,
+      userCanEdit: false,
+      adminOnly: true
+    },
+    {
+      key: 'blacklist',
+      name: 'Blacklisted Entities',
+      description: 'Comma separated list of entities that you never want looked up. Should be set to "Only admins can view and edit".',
+      default: '',
+      type: 'text',
+      userCanEdit: false,
+      adminOnly: true
+    },
+    {
+      key: 'domainBlacklistRegex',
+      name: 'Domain Blacklist Regex',
+      description:
+        'Domains that match the given regex will not be looked up (if blank, no domains will be black listed).  Should be set to "Only admins can view and edit".',
+      default: '',
+      type: 'text',
       userCanEdit: false,
       adminOnly: true
     }

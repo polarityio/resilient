@@ -4,8 +4,11 @@
 {{#each details.incidents as |incident incidentIndex|}}
   <ul class="nav nav-tabs">
       <li class="nav-item">
-          <a {{action "changeTab" "incident" incidentIndex}} class="nav-link {{if (or (eq incident.__activeTab "incident")(not incident.__activeTab)) "active"}}" href="#">{{capitalize incident.type_id}}</a>
+          <a {{action "changeTab" "incident" incidentIndex}} class="nav-link {{if (or (eq incident.__activeTab "incident")(not incident.__activeTab)) "active"}}" href="#">Incident #{{incident.result.id}}</a>
       </li>
+    <li class="nav-item">
+      <a {{action "changeTab" "matches" incidentIndex}} class="nav-link {{if (eq incident.__activeTab "matches") "active"}}" href="#">Matches</a>
+    </li>
       <li class="nav-item">
           <a {{action "changeTab" "notes" incidentIndex}} class="nav-link {{if (eq incident.__activeTab "notes") "active"}}" href="#">Notes</a>
       </li>
@@ -16,28 +19,17 @@
   {{/if}}
 
   {{#if (or (eq incident.__activeTab "incident")(not incident.__activeTab))}}
-
       <div class="tab-container">
           <div class="view-in-link">
-              {{#if (eq incident.type_id "task")}}
-                  <a class="p-link" href="{{details.host}}/#incidents/{{incident.inc_id}}?task_id={{incident.obj_id}}">
+                  <a class="p-link" href="{{details.host}}/#incidents/{{incident.id}}">
                       View in Resilient {{fa-icon "external-link-square" fixedWidth=true class="external-icon"}}
                   </a>
-              {{else if (eq incident.type_id "artifact")}}
-                  <a class="p-link" href="{{details.host}}/#incidents/{{incident.inc_id}}?tab=artifacts">
-                      View in Resilient {{fa-icon "external-link-square" fixedWidth=true class="external-icon"}}
-                  </a>
-              {{else if (eq incident.type_id "note")}}
-                  <a class="p-link" href="{{details.host}}/#incidents/{{incident.inc_id}}?tab=notes">
-                      View in Resilient {{fa-icon "external-link-square" fixedWidth=true class="external-icon"}}
-                  </a>
-              {{else}}
-                  <a class="p-link" href="{{details.host}}/#incidents/{{incident.obj_id}}">
-                      View in Resilient {{fa-icon "external-link-square" fixedWidth=true class="external-icon"}}
-                  </a>
-              {{/if}}
           </div>
-          <div class="p-key incident-description">{{incident.result.description.content}}</div>
+          <h1 class="p-title">{{fa-icon "bolt" fixedWidth=true}} {{incident.result.name}}</h1>
+          {{#if incident.result.description.content}}
+            <div class="p-key">Description:</div>
+            <pre>{{incident.result.description.content}}</pre>
+          {{/if}}
           {{#each incidentFields as |fieldObj|}}
               {{#if (get incident fieldObj.property)}}
                   {{#if (eq fieldObj.type "date")}}
@@ -48,7 +40,7 @@
                   {{else if (eq fieldObj.type "block")}}
                       <div>
                           <span class="p-key">{{fieldObj.name}}: </span>
-                          <div class="p-key">{{get incident fieldObj.property}}</div>
+                          <pre>{{get incident fieldObj.property}}</pre>
                       </div>
                   {{else}}
                       <div>
@@ -59,6 +51,34 @@
               {{/if}}
           {{/each}}
       </div>
+  {{/if}}
+
+  {{#if (eq incident.__activeTab "matches")}}
+    <div class="tab-container">
+    {{#each (get details.matchesByIncidentId incident.result.id) as | match | }}
+      <h1 class="p-title">{{fa-icon "square" fixedWidth=true}} {{capitalize match.type_id}}</h1>
+      {{#each (get searchMatchFields match.type_id) as |fieldObj fieldIndex|}}
+        {{#if (get match fieldObj.property)}}
+          {{#if (eq fieldObj.type "date")}}
+              <div>
+                <span class="p-key">{{fieldObj.name}}: </span>
+                <span class="p-value">{{moment-format (get match fieldObj.property) 'MM/DD/YYYY' timeZone=timezone}}</span>
+              </div>
+          {{else if (eq fieldObj.type "block")}}
+              <div>
+                <span class="p-key">{{fieldObj.name}}: </span>
+                <pre>{{get match fieldObj.property}}</pre>
+              </div>
+          {{else}}
+              <div>
+                <span class="p-key">{{fieldObj.name}}: </span>
+                <span class="p-value">{{get match fieldObj.property}}</span>
+              </div>
+          {{/if}}
+        {{/if}}
+      {{/each}}
+    {{/each}}
+    </div>
   {{/if}}
 
   {{#if (eq incident.__activeTab "notes")}}
@@ -77,7 +97,7 @@
                           Displaying {{incident.comments.length}} of {{incident.totalComments}} most recent notes.
                       </div>
                       <div>
-                          <button {{action "createComment" incident.obj_id incidentIndex}} type="submit" disabled={{incident.__postButtonDisabled}}>
+                          <button {{action "createComment" incident.inc_id incidentIndex}} type="submit" disabled={{incident.__postButtonDisabled}}>
                               Post
                           </button>
                       </div>
