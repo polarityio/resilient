@@ -31,13 +31,13 @@ Your Resilient Org ID. You can find your resilient org id by navigating to Admin
 
 The types of data that should be searched.  Options include "Incidents", "Notes", "Artifacts", and "Tasks".  
 
-### Blacklisted Entities
+### Ignored List
 
-Comma separated list of entities that you never want looked up
+Comma separated list of entities that you never want looked up in Resilient. 
 
-### Domain Blacklist Regex
+### Ignored Domain Regex
 
-Domains that match the given regex will not be looked up (if blank, no domains will be black listed)
+Domains that match the given regex will not be looked up.
 
 ## Polarity
 
