@@ -96,8 +96,8 @@ module.exports = {
       description: 'Your Resilient URL',
       default: '',
       type: 'text',
-      userCanEdit: true,
-      adminOnly: false
+      userCanEdit: false,
+      adminOnly: true
     },
     {
       key: 'username',
@@ -123,8 +123,8 @@ module.exports = {
       description: 'Your Resilient Org ID',
       default: '',
       type: 'text',
-      userCanEdit: true,
-      adminOnly: false
+      userCanEdit: false,
+      adminOnly: true
     },
     {
       key: 'searchTypes',
@@ -165,7 +165,7 @@ module.exports = {
       description: 'List of domains or IPs (space delimited) that you never want to send to DNSDB',
       default: '',
       type: 'text',
-      userCanEdit: true,
+      userCanEdit: false,
       adminOnly: false
     },
     {
@@ -175,7 +175,7 @@ module.exports = {
         'Domains that match the given regex will not be looked up.  Should be set to "Only admins can view and edit".',
       default: '',
       type: 'text',
-      userCanEdit: true,
+      userCanEdit: false,
       adminOnly: false
     }
   ]
