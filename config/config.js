@@ -96,8 +96,8 @@ module.exports = {
       description: 'Your Resilient URL',
       default: '',
       type: 'text',
-      userCanEdit: true,
-      adminOnly: false
+      userCanEdit: false,
+      adminOnly: true
     },
     {
       key: 'username',
@@ -123,8 +123,8 @@ module.exports = {
       description: 'Your Resilient Org ID',
       default: '',
       type: 'text',
-      userCanEdit: true,
-      adminOnly: false
+      userCanEdit: false,
+      adminOnly: true
     },
     {
       key: 'searchTypes',
@@ -160,23 +160,23 @@ module.exports = {
       adminOnly: true
     },
     {
-      key: 'blacklist',
-      name: 'Blacklisted Entities',
-      description: 'Comma separated list of entities that you never want looked up. Should be set to "Only admins can view and edit".',
+      key: 'blocklist',
+      name: 'Ignored List',
+      description: 'List of domains or IPs (space delimited) that you never want to send to DNSDB',
       default: '',
       type: 'text',
       userCanEdit: false,
-      adminOnly: true
+      adminOnly: false
     },
     {
-      key: 'domainBlacklistRegex',
-      name: 'Domain Blacklist Regex',
+      key: 'domainBlocklistRegex',
+      name: 'Ignored Domain Regex',
       description:
-        'Domains that match the given regex will not be looked up (if blank, no domains will be black listed).  Should be set to "Only admins can view and edit".',
+        'Domains that match the given regex will not be looked up.  Should be set to "Only admins can view and edit".',
       default: '',
       type: 'text',
       userCanEdit: false,
-      adminOnly: true
+      adminOnly: false
     }
   ]
 };
