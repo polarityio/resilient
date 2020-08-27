@@ -53,16 +53,24 @@ function startup(logger) {
       });
     }
 
-    createToken(options, function(err, token) {
+    // token is null if the user is authenticating via Api Key
+    _createTokenOrApiKeyAuth(options, function (err, token) {
       if (err) {
         Logger.error({ err: err }, 'Error getting token');
         return cb({
           err: err,
-          detail: 'E7rror creating authentication token'
+          detail: 'Error creating authentication token'
         });
       }
 
-      requestOptions.headers = { 'X-sess-id': token.token, Cookie: token.cookies };
+      if (_isApiKeyAuth(options)) {
+        requestOptions.auth = {
+          username: options.apiKeyId,
+          password: options.apiKeySecret
+        };
+      } else {
+        requestOptions.headers = { 'X-sess-id': token.token, Cookie: token.cookies };
+      }
 
       requestWithDefaults(requestOptions, (err, resp, body) => {
         if (err) {
@@ -85,6 +93,17 @@ function startup(logger) {
       });
     });
   };
+}
+
+function _createTokenOrApiKeyAuth(options, cb) {
+  if (_isApiKeyAuth(options)) {
+    return cb(null);
+  }
+  createToken(options, cb);
+}
+
+function _isApiKeyAuth(options) {
+  return options.apiKeyId && options.apiKeyId.length > 0 && options.apiKeySecret && options.apiKeySecret.length > 0;
 }
 
 function _setupRegexBlocklists(options) {
@@ -134,7 +153,7 @@ function createToken(options, cb) {
 
     Logger.trace({ request: requestOptions }, 'Generating new token');
 
-    requestWithDefaults(requestOptions, function(err, response, body) {
+    requestWithDefaults(requestOptions, function (err, response, body) {
       if (err) {
         return cb(err);
       }
@@ -161,6 +180,7 @@ function createToken(options, cb) {
 
 function doLookup(entities, options, cb) {
   _setupRegexBlocklists(options);
+  options.url = options.url.endsWith('/') ? options.url.slice(0, -1) : options.url;
 
   let lookupResults = [];
 
@@ -170,7 +190,7 @@ function doLookup(entities, options, cb) {
     entities,
     (entityObj, next) => {
       if (options.blocklist.toLowerCase().includes(entityObj.value.toLowerCase())) {
-        Logger.debug({entity: entityObj.value}, 'Ignored BlockListed Entity Lookup');
+        Logger.debug({ entity: entityObj.value }, 'Ignored BlockListed Entity Lookup');
         lookupResults.push({
           entity: entityObj,
           data: null
@@ -179,7 +199,7 @@ function doLookup(entities, options, cb) {
       } else if (entityObj.isDomain) {
         if (domainBlocklistRegex !== null) {
           if (domainBlocklistRegex.test(entityObj.value)) {
-            Logger.debug({domain: entityObj.value}, 'Ignored BlockListed Domain Lookup');
+            Logger.debug({ domain: entityObj.value }, 'Ignored BlockListed Domain Lookup');
             lookupResults.push({
               entity: entityObj,
               data: null
@@ -189,7 +209,7 @@ function doLookup(entities, options, cb) {
         }
       }
 
-      _lookupEntity(entityObj, options, searchTypes, function(err, result) {
+      _lookupEntity(entityObj, options, searchTypes, function (err, result) {
         if (err) {
           next(err);
         } else {
@@ -247,14 +267,16 @@ function _lookupEntity(entityObj, options, searchTypes, cb) {
 
   Logger.trace({ request: requestOptions }, 'search_ex request options');
 
-  authenticatedRequest(options, requestOptions, function(err, response, body) {
+  authenticatedRequest(options, requestOptions, function (err, response, body) {
     if (err) {
       Logger.trace({ err: err, response: response }, 'Error in _lookupEntity() requestWithDefault');
-      return cb(err);
+      return cb({
+        detail: 'HTTP Request Error',
+        err
+      });
     }
 
     Logger.trace({ data: body }, 'Logging Body Data of the sha256');
-
 
     if (!body || !body.results || body.results.length === 0) {
       cb(null, {
@@ -306,7 +328,7 @@ function _getUniqueIncidentSearchResults(searchResults) {
     const incidentId = result.inc_id;
     uniqueIncidentIds.add(incidentId);
     uniqueIncidents[incidentId] = result;
-    if(!Array.isArray(matchesByIncidentId[incidentId])){
+    if (!Array.isArray(matchesByIncidentId[incidentId])) {
       matchesByIncidentId[incidentId] = [];
     }
     matchesByIncidentId[incidentId].push(result);
@@ -314,7 +336,7 @@ function _getUniqueIncidentSearchResults(searchResults) {
 
   const incidentIds = Array.from(uniqueIncidentIds);
   incidentIds.forEach((incidentId) => {
-    const incidentSearchResult = uniqueIncidents[incidentId]
+    const incidentSearchResult = uniqueIncidents[incidentId];
     incidentSummaries.push({
       inc_id: incidentSearchResult.inc_id,
       inc_name: incidentSearchResult.inc_name
@@ -429,10 +451,25 @@ function _createJsonErrorObject(msg, pointer, httpCode, code, title, meta) {
 
   return error;
 }
+function _isUsingPassword(userOptions) {
+  return typeof userOptions['password'].value === 'string' && userOptions['password'].value.length > 0;
+}
+
+function _isUsingApiKey(userOptions) {
+  return typeof userOptions['password'].value === 'string' && userOptions['password'].value.length > 0;
+}
 
 function validateOptions(userOptions, cb) {
   Logger.trace(userOptions, 'User Options to Validate');
   let errors = [];
+
+  const hasUsername = typeof userOptions.username.value === 'string' && userOptions.username.value.length > 0;
+  const hasPassword = typeof userOptions.password.value === 'string' && userOptions.password.value.length > 0;
+  const hasApiId = typeof userOptions.apiKeyId.value === 'string' && userOptions.apiKeyId.value.length > 0;
+  const hasApiKey = typeof userOptions.apiKeySecret.value === 'string' && userOptions.apiKeySecret.value.length > 0;
+  const apiMode = hasApiId || hasApiKey;
+  const passwordMode = hasPassword || hasUsername;
+
   if (
     typeof userOptions.url.value !== 'string' ||
     (typeof userOptions.url.value === 'string' && userOptions.url.value.length === 0)
@@ -444,8 +481,9 @@ function validateOptions(userOptions, cb) {
   }
 
   if (
-    typeof userOptions.orgId.value !== 'string' ||
-    (typeof userOptions.orgId.value === 'string' && userOptions.orgId.value.length === 0)
+    (typeof userOptions.orgId.value !== 'string' ||
+      (typeof userOptions.orgId.value === 'string' && userOptions.orgId.value.length === 0)) &&
+    (!hasPassword || !hasUsername)
   ) {
     errors.push({
       key: 'orgId',
@@ -453,24 +491,108 @@ function validateOptions(userOptions, cb) {
     });
   }
 
-  if (
-    typeof userOptions.username.value !== 'string' ||
-    (typeof userOptions.username.value === 'string' && userOptions.username.value.length === 0)
-  ) {
-    errors.push({
-      key: 'username',
-      message: 'You must provide a Resilient Username'
-    });
-  }
+  if (apiMode) {
+    if (
+      typeof userOptions.apiKeyId.value !== 'string' ||
+      (typeof userOptions.apiKeyId.value === 'string' && userOptions.apiKeyId.value.length === 0)
+    ) {
+      errors.push({
+        key: 'apiKeyId',
+        message: 'You must provide a Resilient API Key ID'
+      });
+    }
 
-  if (
-    typeof userOptions.password.value !== 'string' ||
-    (typeof userOptions.password.value === 'string' && userOptions.password.value.length === 0)
-  ) {
-    errors.push({
-      key: 'password',
-      message: 'You must provide a Resilient Password'
-    });
+    if (
+      typeof userOptions.apiKeySecret.value !== 'string' ||
+      (typeof userOptions.apiKeySecret.value === 'string' && userOptions.apiKeySecret.value.length === 0)
+    ) {
+      errors.push({
+        key: 'apiKeySecret',
+        message: 'You must provide a Resilient API Key Secret'
+      });
+    }
+
+    if (hasPassword) {
+      errors.push({
+        key: 'password',
+        message: 'You cannot provide a password if authenticating via API Key'
+      });
+    }
+
+    if (hasUsername) {
+      errors.push({
+        key: 'username',
+        message: 'You cannot provide a username if authenticating via API Key'
+      });
+    }
+  } else if (passwordMode) {
+    if (
+      (typeof userOptions.username.value !== 'string' ||
+        (typeof userOptions.username.value === 'string' && userOptions.username.value.length === 0)) &&
+      !hasApiId &&
+      !hasApiKey
+    ) {
+      errors.push({
+        key: 'username',
+        message: 'You must provide a Resilient Username'
+      });
+    }
+
+    if (
+      (typeof userOptions.password.value !== 'string' ||
+        (typeof userOptions.password.value === 'string' && userOptions.password.value.length === 0)) &&
+      !hasApiId &&
+      !hasApiKey
+    ) {
+      errors.push({
+        key: 'password',
+        message: 'You must provide a Resilient Password'
+      });
+    }
+  } else {
+    if (
+      typeof userOptions.apiKeyId.value !== 'string' ||
+      (typeof userOptions.apiKeyId.value === 'string' && userOptions.apiKeyId.value.length === 0)
+    ) {
+      errors.push({
+        key: 'apiKeyId',
+        message: 'You must provide a Resilient API Key ID or Username'
+      });
+    }
+
+    if (
+      typeof userOptions.apiKeySecret.value !== 'string' ||
+      (typeof userOptions.apiKeySecret.value === 'string' && userOptions.apiKeySecret.value.length === 0)
+    ) {
+      errors.push({
+        key: 'apiKeySecret',
+        message: 'You must provide a Resilient API Key Secret or Password'
+      });
+    }
+
+    if (
+      (typeof userOptions.username.value !== 'string' ||
+        (typeof userOptions.username.value === 'string' && userOptions.username.value.length === 0)) &&
+      !hasApiId &&
+      !hasApiKey
+    ) {
+      errors.push({
+        key: 'username',
+        message: 'You must provide a Resilient Username or API Key ID'
+      });
+    }
+
+    if (
+      (typeof userOptions.password.value !== 'string' ||
+        (typeof userOptions.password.value === 'string' && userOptions.password.value.length === 0)) &&
+      !hasApiId &&
+      !hasApiKey
+    ) {
+      errors.push({
+        key: 'password',
+        message: 'You must provide a Resilient Password or API Key Secret'
+      });
+    }
   }
 
   Logger.trace(errors, 'Validated Options');
@@ -490,7 +612,7 @@ function createComment(incidentId, note, options, cb) {
 
   Logger.trace({ requestOptions: requestOptions }, 'Create Comment Request Options');
 
-  authenticatedRequest(options, requestOptions, function(err, response, body) {
+  authenticatedRequest(options, requestOptions, function (err, response, body) {
     if (err) {
       Logger.error(err, 'Error creating new note');
       return cb(err);
@@ -576,14 +698,14 @@ function onDetails(resultObject, options, cb) {
       query: resultObject.data.details.incidentIds.join(' '),
       min_required_results: 0,
       types: ['incident'],
-      "filters": {
-        "incident": [
+      filters: {
+        incident: [
           {
-            "conditions": [
+            conditions: [
               {
-                "method": "in",
-                "field_name": "id",
-                "value": resultObject.data.details.incidentIds
+                method: 'in',
+                field_name: 'id',
+                value: resultObject.data.details.incidentIds
               }
             ]
           }
@@ -600,14 +722,14 @@ function onDetails(resultObject, options, cb) {
     }
 
     const results = body.results.map((result) => {
-      if(result.result.plan_status === 'A'){
+      if (result.result.plan_status === 'A') {
         result.result.plan_status_human = 'Active';
       }
-      if(result.result.plan_status === 'C'){
+      if (result.result.plan_status === 'C') {
         result.result.plan_status_human = 'Closed';
       }
       return result;
-    })
+    });
 
     resultObject.data.details.incidents = results;
     Logger.trace({ resultObject }, 'onDetails result');
