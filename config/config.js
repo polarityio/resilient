@@ -48,14 +48,6 @@ module.exports = {
       file: './templates/block.hbs'
     }
   },
-  // summary: {
-  //   component: {
-  //     file: './components/summary.js'
-  //   },
-  //   template: {
-  //     file: './templates/summary.hbs'
-  //   }
-  // },
   request: {
     // Provide the path to your certFile. Leave an empty string to ignore this option.
     // Relative paths are relative to the integration's root directory
@@ -93,16 +85,34 @@ module.exports = {
     {
       key: 'url',
       name: 'Resilient URL',
-      description: 'Your Resilient URL',
+      description: 'Your Resilient URL to include the schema (i.e., https://)',
       default: '',
       type: 'text',
       userCanEdit: false,
       adminOnly: true
     },
     {
+      key: 'apiKeyId',
+      name: 'Resilient API Key ID',
+      description: 'Your Resilient API Key ID. You must authenticate with either an "API Key ID" and "API Key Secret", or a "username" and "password", but not both.',
+      default: '',
+      type: 'text',
+      userCanEdit: true,
+      adminOnly: false
+    },
+    {
+      key: 'apiKeySecret',
+      name: 'Resilient API Key Secret',
+      description: 'Your Resilient API Key Secret token value. You must authenticate with either an "API Key ID" and "API Key Secret", or a "username" and "password", but not both.',
+      default: '',
+      type: 'password',
+      userCanEdit: true,
+      adminOnly: false
+    },
+    {
       key: 'username',
       name: 'Resilient Username',
-      description: 'Your Resilient username.',
+      description: 'Your Resilient username.  (We recommend using the API Key ID, and API Key Secret authentication options)',
       default: '',
       type: 'text',
       userCanEdit: true,
@@ -111,7 +121,7 @@ module.exports = {
     {
       key: 'password',
       name: 'Resilient Password',
-      description: 'Your Resilient password.',
+      description: 'Your Resilient password. (We recommend using the API Key ID, and API Key Secret authentication options)',
       default: '',
       type: 'password',
       userCanEdit: true,
