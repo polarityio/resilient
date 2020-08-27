@@ -463,7 +463,7 @@ function validateOptions(userOptions, cb) {
   Logger.trace(userOptions, 'User Options to Validate');
   let errors = [];
 
-  const hasUsername = typeof userOptions.password.value === 'string' && userOptions.password.value.length > 0;
+  const hasUsername = typeof userOptions.username.value === 'string' && userOptions.username.value.length > 0;
   const hasPassword = typeof userOptions.password.value === 'string' && userOptions.password.value.length > 0;
   const hasApiId = typeof userOptions.apiKeyId.value === 'string' && userOptions.apiKeyId.value.length > 0;
   const hasApiKey = typeof userOptions.apiKeySecret.value === 'string' && userOptions.apiKeySecret.value.length > 0;
@@ -509,6 +509,20 @@ function validateOptions(userOptions, cb) {
       errors.push({
         key: 'apiKeySecret',
         message: 'You must provide a Resilient API Key Secret'
+      });
+    }
+
+    if (hasPassword) {
+      errors.push({
+        key: 'password',
+        message: 'You cannot provide a password if authenticating via API Key'
+      });
+    }
+
+    if (hasUsername) {
+      errors.push({
+        key: 'username',
+        message: 'You cannot provide a username if authenticating via API Key'
       });
     }
   } else if (passwordMode) {
