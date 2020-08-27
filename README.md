@@ -18,6 +18,20 @@ To learn more about IBM Resilient, please visit the [official website](https://w
 ### Resilient URL
 Your URL used to access Resilient.
 
+### Resilient API Key ID
+
+Your Resilient API Key ID. You must authenticate with either an "API Key ID" and "API Key Secret", or a "username" and "password", but not both.
+
+If authenticating with an API Key, your API key must have the following permissions:
+
+* Incidents -> Read
+* Edit Incidents -> Notes
+* Read Tasks
+
+### Resilient API Key Secret
+
+Your Resilient API Key Secret token value. You must authenticate with either an "API Key ID" and "API Key Secret", or a "username" and "password", but not both.
+
 ### Resilient Username
 The username of the Resilient user you want the integration to authenticate as.
 
