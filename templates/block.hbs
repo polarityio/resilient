@@ -20,11 +20,19 @@
 
   {{#if (or (eq incident.__activeTab "incident")(not incident.__activeTab))}}
       <div class="tab-container">
-          <div class="view-in-link">
-                  <a class="p-link" href="{{details.host}}/#incidents/{{incident.id}}">
-                      View in Resilient {{fa-icon "external-link-square" fixedWidth=true class="external-icon"}}
-                  </a>
-          </div>
+        {{#if incident.id}}
+            <div class="view-in-link">
+                <a class="p-link" href="{{details.host}}/#incidents/{{incident.id}}">
+                    View in Resilient {{fa-icon "external-link-square" fixedWidth=true class="external-icon"}}
+                </a>
+            </div>
+        {{else}}
+            <div class="view-in-link">
+                <a class="p-link" href="{{details.host}}/#incidents/{{incident.obj_id}}">
+                    View in Resilient {{fa-icon "external-link-square" fixedWidth=true class="external-icon"}}
+                </a>
+            </div>
+        {{/if}}
           <h1 class="p-title">{{fa-icon "bolt" fixedWidth=true}} {{incident.result.name}}</h1>
           {{#if incident.result.description.content}}
             <div class="p-key">Description:</div>
