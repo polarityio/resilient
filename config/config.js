@@ -16,6 +16,7 @@ module.exports = {
    * @required
    */
   acronym: 'RES',
+  defaultColor: 'dark-purple',
   /**
    * Description for this integration which is displayed in the Polarity integrations user interface
    *
@@ -24,6 +25,12 @@ module.exports = {
    */
   description: 'Query incidents within the IBM Resilient Incident Response Platform',
   entityTypes: ['IPv4', 'domain', 'email', 'hash'],
+  customTypes: [
+    {
+      key: 'ldapUsername',
+      regex: /\b[A-Z]{1}[0-9]{6}\b/
+    }
+  ],
   /**
    * An array of style files (css or less) that will be included for your integration. Any styles specified in
    * the below files can be used in your custom template.
@@ -94,7 +101,8 @@ module.exports = {
     {
       key: 'apiKeyId',
       name: 'Resilient API Key ID',
-      description: 'Your Resilient API Key ID. You must authenticate with either an "API Key ID" and "API Key Secret", or a "username" and "password", but not both.',
+      description:
+        'Your Resilient API Key ID. You must authenticate with either an "API Key ID" and "API Key Secret", or a "username" and "password", but not both.',
       default: '',
       type: 'text',
       userCanEdit: true,
@@ -103,7 +111,8 @@ module.exports = {
     {
       key: 'apiKeySecret',
       name: 'Resilient API Key Secret',
-      description: 'Your Resilient API Key Secret token value. You must authenticate with either an "API Key ID" and "API Key Secret", or a "username" and "password", but not both.',
+      description:
+        'Your Resilient API Key Secret token value. You must authenticate with either an "API Key ID" and "API Key Secret", or a "username" and "password", but not both.',
       default: '',
       type: 'password',
       userCanEdit: true,
@@ -112,7 +121,8 @@ module.exports = {
     {
       key: 'username',
       name: 'Resilient Username',
-      description: 'Your Resilient username.  (We recommend using the API Key ID, and API Key Secret authentication options)',
+      description:
+        'Your Resilient username.  (We recommend using the API Key ID, and API Key Secret authentication options)',
       default: '',
       type: 'text',
       userCanEdit: true,
@@ -121,7 +131,8 @@ module.exports = {
     {
       key: 'password',
       name: 'Resilient Password',
-      description: 'Your Resilient password. (We recommend using the API Key ID, and API Key Secret authentication options)',
+      description:
+        'Your Resilient password. (We recommend using the API Key ID, and API Key Secret authentication options)',
       default: '',
       type: 'password',
       userCanEdit: true,
