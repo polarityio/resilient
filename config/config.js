@@ -16,7 +16,7 @@ module.exports = {
    * @required
    */
   acronym: 'RES',
-  defaultColor: 'dark-purple',
+  defaultColor: 'light-purple',
   /**
    * Description for this integration which is displayed in the Polarity integrations user interface
    *
@@ -29,6 +29,18 @@ module.exports = {
     {
       key: 'ldapUsername',
       regex: /\b[A-Z]{1}[0-9]{6}\b/
+    },
+    {
+      key: 'macDomain',
+      regex: /(mac-(\d{3})\.)(([\w,-]*)(\.)?)*/
+    },
+    {
+      key: 'miscCode',
+      regex: /(C02|C07|C17|C1M|D25|F5K|ST\-12)(\w{9})(\-lm)?/
+    },
+    {
+      key: 'usCode',
+      regex: /US(\d{6})/
     }
   ],
   /**

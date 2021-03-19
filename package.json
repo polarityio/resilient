@@ -1,7 +1,7 @@
 {
   "main": "./integration.js",
   "name": "IBMResilient",
-  "version": "3.3.2-beta",
+  "version": "3.3.3-beta",
   "private": true,
   "dependencies": {
     "request": "^2.88.2",
