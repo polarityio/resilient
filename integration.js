@@ -9,6 +9,11 @@ const tokenCache = new Map();
 const MAX_AUTH_RETRIES = 2;
 const MAX_TOP_LEVEL_COMMENTS = 15;
 
+// Currently MAX_SUMMARY_TAGS and MAX_INCIDENTS_TO_RETURN should have the same value
+// Otherwise, we may show a summary tag for an incident we don't show information for
+const MAX_SUMMARY_TAGS = 10;
+const MAX_INCIDENTS_TO_RETURN = 10;
+
 let Logger;
 let requestWithDefaults;
 let authenticatedRequest;
@@ -213,7 +218,7 @@ function doLookup(entities, options, cb) {
         if (err) {
           next(err);
         } else {
-          Logger.debug({ results: result }, 'Logging results');
+          Logger.trace({ results: result }, 'Logging results');
           lookupResults.push(result);
           next(null);
         }
@@ -226,6 +231,9 @@ function doLookup(entities, options, cb) {
 }
 
 function _lookupEntity(entityObj, options, searchTypes, cb) {
+  const today = new Date();
+  const searchWindow = today.setDate(today.getDate() - parseInt(options.daysToSearch, 10));
+
   let requestOptions = {
     uri: `${options.url}/rest/search_ex`,
     method: 'POST',
@@ -245,6 +253,33 @@ function _lookupEntity(entityObj, options, searchTypes, cb) {
                 method: 'equals',
                 field_name: 'value',
                 value: entityObj.value
+              },
+              {
+                method: 'gte',
+                field_name: 'created',
+                value: searchWindow
+              }
+            ]
+          }
+        ],
+        incident: [
+          {
+            conditions: [
+              {
+                method: 'gte',
+                field_name: 'create_date',
+                value: searchWindow
+              }
+            ]
+          }
+        ],
+        task: [
+          {
+            conditions: [
+              {
+                method: 'gte',
+                field_name: 'init_date',
+                value: searchWindow
               }
             ]
           }
@@ -256,6 +291,11 @@ function _lookupEntity(entityObj, options, searchTypes, cb) {
                 method: 'contains',
                 field_name: 'text',
                 value: entityObj.value
+              },
+              {
+                method: 'gte',
+                field_name: 'create_date',
+                value: searchWindow
               }
             ]
           }
@@ -265,7 +305,7 @@ function _lookupEntity(entityObj, options, searchTypes, cb) {
     json: true
   };
 
-  Logger.trace({ request: requestOptions }, 'search_ex request options');
+  Logger.debug({ request: requestOptions }, 'search_ex request options');
 
   authenticatedRequest(options, requestOptions, function (err, response, body) {
     if (err) {
@@ -287,10 +327,12 @@ function _lookupEntity(entityObj, options, searchTypes, cb) {
     }
 
     // incidentSummaries: Array of incident summary objects which contain the inc_id, and inc_name properties
-    // incidentIds: Array of incident id as numbers
     // matchesByIncidentId: object keyed on incident id. Each id points to an array of match objects
     //                      each match object has a `type_id` property
-    const { incidentSummaries, incidentIds, matchesByIncidentId } = _getUniqueIncidentSearchResults(body.results);
+    // incidents: array of incident result objects
+    const { incidentSummaries, matchesByIncidentId, incidents, totalIncidentCount } = _getUniqueIncidentSearchResults(
+      body.results
+    );
 
     cb(null, {
       entity: entityObj,
@@ -298,9 +340,9 @@ function _lookupEntity(entityObj, options, searchTypes, cb) {
         summary: _getSummaryTags(incidentSummaries),
         details: {
           comments: [], // comments are loaded via onMessage
-          incidentIds,
           matchesByIncidentId,
-          incidents: [],
+          totalIncidentCount,
+          incidents,
           host: options.url
         }
       }
@@ -314,6 +356,10 @@ function _lookupEntity(entityObj, options, searchTypes, cb) {
  * Each of these objects has its own unique properties but all of them share a `inc_name` and `inc_id` property
  * which is what we use to construct the tags.
  *
+ * This method also limits the number of incidents that we return as there is no paging capability on the resilient
+ * search_ex endpoint.  To ensure that we capture all matches for the returned incidents we still need to process
+ * the entire result set.
+ *
  * @param searchResults
  * @returns {{searchResultsById: {}, incidentIds: any[]}}
  * @private
@@ -323,8 +369,18 @@ function _getUniqueIncidentSearchResults(searchResults) {
   let uniqueIncidents = {};
   let matchesByIncidentId = {};
   let incidentSummaries = [];
+  let incidents = [];
 
   searchResults.forEach((result) => {
+    if (result.type_id === 'incident' && incidents.length < MAX_INCIDENTS_TO_RETURN) {
+      if (result.result.plan_status === 'A') {
+        result.result.plan_status_human = 'Active';
+      }
+      if (result.result.plan_status === 'C') {
+        result.result.plan_status_human = 'Closed';
+      }
+      incidents.push(result);
+    }
     const incidentId = result.inc_id;
     uniqueIncidentIds.add(incidentId);
     uniqueIncidents[incidentId] = result;
@@ -343,14 +399,19 @@ function _getUniqueIncidentSearchResults(searchResults) {
     });
   });
 
-  return { incidentSummaries, incidentIds, matchesByIncidentId };
+  return { incidentSummaries, matchesByIncidentId, incidents, totalIncidentCount: incidentIds.length };
 }
 
 function _getSummaryTags(incidents) {
   const tags = [];
-  incidents.forEach((incident) => {
+  for (let i = 0; i < MAX_SUMMARY_TAGS && i < incidents.length; i++) {
+    const incident = incidents[i];
     tags.push(`[#${incident.inc_id}] ${incident.inc_name}`);
-  });
+  }
+
+  if (tags.length < incidents.length) {
+    tags.push(`+${incidents.length - tags.length} incidents`);
+  }
   return tags;
 }
 
@@ -451,12 +512,92 @@ function _createJsonErrorObject(msg, pointer, httpCode, code, title, meta) {
 
   return error;
 }
-function _isUsingPassword(userOptions) {
-  return typeof userOptions['password'].value === 'string' && userOptions['password'].value.length > 0;
+
+function createComment(incidentId, note, options, cb) {
+  let requestOptions = {
+    uri: `${options.url}/rest/orgs/${options.orgId}/incidents/${incidentId}/comments`,
+    method: 'POST',
+    body: {
+      text: note
+    },
+    json: true
+  };
+
+  Logger.trace({ requestOptions: requestOptions }, 'Create Comment Request Options');
+
+  authenticatedRequest(options, requestOptions, function (err, response, body) {
+    if (err) {
+      Logger.error(err, 'Error creating new note');
+      return cb(err);
+    }
+
+    cb(null, {});
+  });
 }
 
-function _isUsingApiKey(userOptions) {
-  return typeof userOptions['password'].value === 'string' && userOptions['password'].value.length > 0;
+function getComments(incidentId, options, cb) {
+  let requestOptions = {
+    uri: `${options.url}/rest/orgs/${options.orgId}/incidents/${incidentId}/comments`,
+    method: 'GET',
+    json: true
+  };
+
+  Logger.trace({ requestOptions: requestOptions });
+
+  authenticatedRequest(options, requestOptions, (err, resp, body) => {
+    if (err || resp.statusCode !== 200 || !Array.isArray(body)) {
+      Logger.error(
+        {
+          err: err,
+          statusCode: resp ? resp.statusCode : 'unknown',
+          requestOptions: requestOptions,
+          body: body
+        },
+        'error getting comments'
+      );
+
+      return cb({
+        err: err,
+        statusCode: resp ? resp.statusCode : 'unknown',
+        body: body
+      });
+    }
+
+    // Body should be an array of comment objects. There is no way to sort the returned comments by REST API so
+    // we reverse the order here so that the most recent comment is at index 0.
+    let totalComments = body.length;
+    cb(null, {
+      totalComments,
+      comments: body.reverse().slice(0, MAX_TOP_LEVEL_COMMENTS)
+    });
+  });
+}
+
+function onMessage(payload, options, cb) {
+  Logger.trace(`Received ${payload.type} message`);
+  switch (payload.type) {
+    case 'CREATE_COMMENT':
+      createComment(payload.data.inc_id, payload.data.note, options, (err, result) => {
+        if (err) {
+          Logger.error(err, 'Error in getComments');
+        }
+        cb(err, result);
+      });
+      break;
+    case 'GET_COMMENTS':
+      getComments(payload.data.inc_id, options, (err, comments) => {
+        if (err) {
+          Logger.error(err, 'Error in getComments');
+        }
+        Logger.trace(comments, 'comments');
+        cb(err, comments);
+      });
+      break;
+    default:
+      cb({
+        detail: 'Unexpected onMessage type.  Supported messages are `CREATE_COMMENT` and `GET_COMMENTS`'
+      });
+  }
 }
 
 function validateOptions(userOptions, cb) {
@@ -600,147 +741,9 @@ function validateOptions(userOptions, cb) {
   cb(null, errors);
 }
 
-function createComment(incidentId, note, options, cb) {
-  let requestOptions = {
-    uri: `${options.url}/rest/orgs/${options.orgId}/incidents/${incidentId}/comments`,
-    method: 'POST',
-    body: {
-      text: note
-    },
-    json: true
-  };
-
-  Logger.trace({ requestOptions: requestOptions }, 'Create Comment Request Options');
-
-  authenticatedRequest(options, requestOptions, function (err, response, body) {
-    if (err) {
-      Logger.error(err, 'Error creating new note');
-      return cb(err);
-    }
-
-    cb(null, {});
-  });
-}
-
-function getComments(incidentId, options, cb) {
-  let requestOptions = {
-    uri: `${options.url}/rest/orgs/${options.orgId}/incidents/${incidentId}/comments`,
-    method: 'GET',
-    json: true
-  };
-
-  Logger.trace({ requestOptions: requestOptions });
-
-  authenticatedRequest(options, requestOptions, (err, resp, body) => {
-    if (err || resp.statusCode !== 200 || !Array.isArray(body)) {
-      Logger.error(
-        {
-          err: err,
-          statusCode: resp ? resp.statusCode : 'unknown',
-          requestOptions: requestOptions,
-          body: body
-        },
-        'error getting comments'
-      );
-
-      return cb({
-        err: err,
-        statusCode: resp ? resp.statusCode : 'unknown',
-        body: body
-      });
-    }
-
-    // Body should be an array of comment objects. There is no way to sort the returned comments by REST API so
-    // we reverse the order here so that the most recent comment is at index 0.
-    let totalComments = body.length;
-    cb(null, {
-      totalComments,
-      comments: body.reverse().slice(0, MAX_TOP_LEVEL_COMMENTS)
-    });
-  });
-}
-
-function onMessage(payload, options, cb) {
-  Logger.trace(`Received ${payload.type} message`);
-  switch (payload.type) {
-    case 'CREATE_COMMENT':
-      createComment(payload.data.inc_id, payload.data.note, options, (err, result) => {
-        if (err) {
-          Logger.error(err, 'Error in getComments');
-        }
-        cb(err, result);
-      });
-      break;
-    case 'GET_COMMENTS':
-      getComments(payload.data.inc_id, options, (err, comments) => {
-        if (err) {
-          Logger.error(err, 'Error in getComments');
-        }
-        Logger.trace(comments, 'comments');
-        cb(err, comments);
-      });
-      break;
-    default:
-      cb({
-        detail: 'Unexpected onMessage type.  Supported messages are `CREATE_COMMENT` and `GET_COMMENTS`'
-      });
-  }
-}
-
-function onDetails(resultObject, options, cb) {
-  let requestOptions = {
-    uri: `${options.url}/rest/search_ex`,
-    method: 'POST',
-    body: {
-      org_id: options.orgId,
-      // Note that putting the search value in quotes does not result in an exact match search
-      // The search is always a full text search
-      query: resultObject.data.details.incidentIds.join(' '),
-      min_required_results: 0,
-      types: ['incident'],
-      filters: {
-        incident: [
-          {
-            conditions: [
-              {
-                method: 'in',
-                field_name: 'id',
-                value: resultObject.data.details.incidentIds
-              }
-            ]
-          }
-        ]
-      }
-    },
-    json: true
-  };
-
-  authenticatedRequest(options, requestOptions, (err, response, body) => {
-    if (err) {
-      Logger.trace({ err: err, response: response }, 'Error in _lookupEntity() requestWithDefault');
-      return cb(err);
-    }
-
-    const results = body.results.map((result) => {
-      if (result.result.plan_status === 'A') {
-        result.result.plan_status_human = 'Active';
-      }
-      if (result.result.plan_status === 'C') {
-        result.result.plan_status_human = 'Closed';
-      }
-      return result;
-    });
-
-    resultObject.data.details.incidents = results;
-    Logger.trace({ resultObject }, 'onDetails result');
-    cb(null, resultObject.data);
-  });
-}
-
 module.exports = {
   doLookup,
   startup,
   onMessage,
-  validateOptions,
-  onDetails
+  validateOptions
 };
