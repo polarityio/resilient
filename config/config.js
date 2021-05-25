@@ -181,6 +181,15 @@ module.exports = {
       adminOnly: true
     },
     {
+      key: 'daysToSearch',
+      name: 'Days to Search',
+      description: 'The number of days back to search. For example, if set to 365, the integration will limit results to incidents created in the last 365 days. Defaults to 365 days.',
+      default: 365,
+      type: 'number',
+      userCanEdit: false,
+      adminOnly: true
+    },
+    {
       key: 'blocklist',
       name: 'Ignored List',
       description: 'List of domains or IPs (space delimited) that you never want to send to DNSDB',
