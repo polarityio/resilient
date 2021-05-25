@@ -43,7 +43,11 @@ Your Resilient Org ID. You can find your resilient org id by navigating to Admin
 
 ### Types to Search
 
-The types of data that should be searched.  Options include "Incidents", "Notes", "Artifacts", and "Tasks".  
+The types of data that should be searched.  Options include "Incidents", "Notes", "Artifacts", and "Tasks".
+
+### Days to Search
+
+The number of days back to search. For example, if set to 365, the integration will limit results to incidents created in the last 365 days. Defaults to 365 days.
 
 ### Ignored List
 

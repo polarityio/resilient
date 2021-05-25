@@ -183,8 +183,8 @@ module.exports = {
     {
       key: 'daysToSearch',
       name: 'Days to Search',
-      description: 'The number of days back to search. For example, if set to 365, the integration will search the last year of selected types. Defaults to 180 days.',
-      default: 180,
+      description: 'The number of days back to search. For example, if set to 365, the integration will limit results to incidents created in the last 365 days. Defaults to 365 days.',
+      default: 365,
       type: 'number',
       userCanEdit: false,
       adminOnly: true
