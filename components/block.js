@@ -99,6 +99,11 @@ polarity.export = PolarityComponent.extend({
       type: 'string'
     },
     {
+      property: 'result.workspace.name',
+      name: 'Workspace',
+      type: 'string'
+    },
+    {
       property: 'result.is_scenario',
       name: 'Scenario',
       type: 'string'

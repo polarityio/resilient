@@ -72,7 +72,7 @@ module.exports = {
     // the url parameter (by embedding the auth info in the uri)
     proxy: '',
     /**
-     * If set to false, the integeration will ignore SSL errors.  This will allow the integration to connect
+     * If set to false, the integration will ignore SSL errors.  This will allow the integration to connect
      * to servers without valid SSL certificates.  Please note that we do NOT recommending setting this
      * to false in a production environment.
      */
@@ -140,8 +140,17 @@ module.exports = {
     },
     {
       key: 'orgId',
-      name: 'Resilient Org ID: ',
+      name: 'Resilient Org ID',
       description: 'Your Resilient Org ID',
+      default: '',
+      type: 'text',
+      userCanEdit: false,
+      adminOnly: true
+    },
+    {
+      key: 'workspaces',
+      name: 'Workspaces to Search',
+      description: 'Comma delimited list of workspaces to search.  If left blank, all workspaces accessible to the provided API key or user will be searched.  Workspace names are case-sensitive.  This option should be set to "Only admins can view and edit"',
       default: '',
       type: 'text',
       userCanEdit: false,

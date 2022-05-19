@@ -1,6 +1,6 @@
 'use strict';
 
-const request = require('request');
+const request = require('postman-request');
 const config = require('./config/config');
 const async = require('async');
 const fs = require('fs');
@@ -230,78 +230,146 @@ function doLookup(entities, options, cb) {
   );
 }
 
-function _lookupEntity(entityObj, options, searchTypes, cb) {
+function _getArtifactFilters(entityObj, searchWindow, workspaces) {
+  const filter = [
+    // note that this filter only applies to type artifact and will not effect other types
+    {
+      conditions: [
+        {
+          method: 'equals',
+          field_name: 'value',
+          value: entityObj.value
+        },
+        {
+          method: 'gte',
+          field_name: 'created',
+          value: searchWindow
+        }
+      ]
+    }
+  ];
+
+  if (workspaces.length > 0) {
+    filter[0].conditions.push({
+      method: 'in',
+      field_name: 'workspace',
+      value: workspaces
+    });
+  }
+
+  return filter;
+}
+
+function _getIncidentFilters(entityObj, searchWindow, workspaces) {
+  const filter = [
+    {
+      conditions: [
+        {
+          method: 'gte',
+          field_name: 'create_date',
+          value: searchWindow
+        }
+      ]
+    }
+  ];
+
+  if (workspaces.length > 0) {
+    filter[0].conditions.push({
+      method: 'in',
+      field_name: 'workspace',
+      value: workspaces
+    });
+  }
+
+  return filter;
+}
+
+function _getTaskFilters(entityObj, searchWindow, workspaces) {
+  const filter = [
+    {
+      conditions: [
+        {
+          method: 'gte',
+          field_name: 'init_date',
+          value: searchWindow
+        }
+      ]
+    }
+  ];
+
+  if (workspaces.length > 0) {
+    filter[0].conditions.push({
+      method: 'in',
+      field_name: 'workspace',
+      value: workspaces
+    });
+  }
+
+  return filter;
+}
+
+function _getNoteFilters(entityObj, searchWindow, workspaces) {
+  const filter = [
+    {
+      conditions: [
+        {
+          method: 'contains',
+          field_name: 'text',
+          value: entityObj.value
+        },
+        {
+          method: 'gte',
+          field_name: 'create_date',
+          value: searchWindow
+        }
+      ]
+    }
+  ];
+
+  if (workspaces.length > 0) {
+    filter[0].conditions.push({
+      method: 'in',
+      field_name: 'workspace',
+      value: workspaces
+    });
+  }
+
+  return filter;
+}
+
+function _createSearch(entityObj, options, searchTypes) {
   const today = new Date();
   const searchWindow = today.setDate(today.getDate() - parseInt(options.daysToSearch, 10));
+  const workspaces = options.workspaces.split(',').reduce((accum, workspace) => {
+    if (workspace.trim().length > 0) {
+      accum.push(workspace.trim());
+    }
+    return accum;
+  }, []);
 
+  const search = {
+    org_id: options.orgId,
+    // Note that putting the search value in quotes does not result in an exact match search
+    // The search is always a full text search
+    query: entityObj.value,
+    min_required_results: 0,
+    types: searchTypes,
+    filters: {
+      artifact: _getArtifactFilters(entityObj, searchWindow, workspaces),
+      incident: _getIncidentFilters(entityObj, searchWindow, workspaces),
+      task: _getTaskFilters(entityObj, searchWindow, workspaces),
+      note: _getNoteFilters(entityObj, searchWindow, workspaces)
+    }
+  };
+
+  return search;
+}
+
+function _lookupEntity(entityObj, options, searchTypes, cb) {
   let requestOptions = {
     uri: `${options.url}/rest/search_ex`,
     method: 'POST',
-    body: {
-      org_id: options.orgId,
-      // Note that putting the search value in quotes does not result in an exact match search
-      // The search is always a full text search
-      query: entityObj.value,
-      min_required_results: 0,
-      types: searchTypes,
-      filters: {
-        artifact: [
-          // note that this filter only applies to type artifact and will not effect other types
-          {
-            conditions: [
-              {
-                method: 'equals',
-                field_name: 'value',
-                value: entityObj.value
-              },
-              {
-                method: 'gte',
-                field_name: 'created',
-                value: searchWindow
-              }
-            ]
-          }
-        ],
-        incident: [
-          {
-            conditions: [
-              {
-                method: 'gte',
-                field_name: 'create_date',
-                value: searchWindow
-              }
-            ]
-          }
-        ],
-        task: [
-          {
-            conditions: [
-              {
-                method: 'gte',
-                field_name: 'init_date',
-                value: searchWindow
-              }
-            ]
-          }
-        ],
-        note: [
-          {
-            conditions: [
-              {
-                method: 'contains',
-                field_name: 'text',
-                value: entityObj.value
-              },
-              {
-                method: 'gte',
-                field_name: 'create_date',
-                value: searchWindow
-              }
-            ]
-          }
-        ]
-      }
-    },
+    body: _createSearch(entityObj, options, searchTypes),
     json: true
   };
 
@@ -309,14 +377,14 @@ function _lookupEntity(entityObj, options, searchTypes, cb) {
 
   authenticatedRequest(options, requestOptions, function (err, response, body) {
     if (err) {
-      Logger.trace({ err: err, response: response }, 'Error in _lookupEntity() requestWithDefault');
+      Logger.error({ err: err, response: response }, 'Error in _lookupEntity() requestWithDefault');
       return cb({
         detail: 'HTTP Request Error',
         err
       });
     }
 
-    Logger.trace({ data: body }, 'Logging Body Data of the sha256');
+    Logger.trace({ body }, 'REST Request Results');
 
     if (!body || !body.results || body.results.length === 0) {
       cb(null, {
