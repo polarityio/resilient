@@ -1,0 +1,165 @@
+{
+  "name": "IBM Resilient",
+  "acronym": "RES",
+  "defaultColor": "dark-purple",
+  "description": "Query incidents within the IBM Resilient Incident Response Platform",
+  "entityTypes": [
+    "IPv4",
+    "domain",
+    "email",
+    "hash"
+  ],
+  "customTypes": [
+    {
+      "key": "ldapUsername",
+      "regex": "\\b[A-Z]{1}[0-9]{6}\\b"
+    }
+  ],
+  "styles": [
+    "./styles/resilient.less"
+  ],
+  "block": {
+    "component": {
+      "file": "./components/block.js"
+    },
+    "template": {
+      "file": "./templates/block.hbs"
+    }
+  },
+  "request": {
+    "cert": "",
+    "key": "",
+    "passphrase": "",
+    "ca": "",
+    "proxy": "",
+    "rejectUnauthorized": true
+  },
+  "logging": {
+    "level": "info"
+  },
+  "options": [
+    {
+      "key": "url",
+      "name": "Resilient URL",
+      "description": "Your Resilient URL to include the schema (i.e., https://)",
+      "default": "",
+      "type": "text",
+      "userCanEdit": false,
+      "adminOnly": true
+    },
+    {
+      "key": "apiKeyId",
+      "name": "Resilient API Key ID",
+      "description": "Your Resilient API Key ID. You must authenticate with either an \"API Key ID\" and \"API Key Secret\", or a \"username\" and \"password\", but not both.",
+      "default": "",
+      "type": "text",
+      "userCanEdit": true,
+      "adminOnly": false
+    },
+    {
+      "key": "apiKeySecret",
+      "name": "Resilient API Key Secret",
+      "description": "Your Resilient API Key Secret token value. You must authenticate with either an \"API Key ID\" and \"API Key Secret\", or a \"username\" and \"password\", but not both.",
+      "default": "",
+      "type": "password",
+      "userCanEdit": true,
+      "adminOnly": false
+    },
+    {
+      "key": "username",
+      "name": "Resilient Username",
+      "description": "Your Resilient username.  (We recommend using the API Key ID, and API Key Secret authentication options)",
+      "default": "",
+      "type": "text",
+      "userCanEdit": true,
+      "adminOnly": false
+    },
+    {
+      "key": "password",
+      "name": "Resilient Password",
+      "description": "Your Resilient password. (We recommend using the API Key ID, and API Key Secret authentication options)",
+      "default": "",
+      "type": "password",
+      "userCanEdit": true,
+      "adminOnly": false
+    },
+    {
+      "key": "orgId",
+      "name": "Resilient Org ID",
+      "description": "Your Resilient Org ID",
+      "default": "",
+      "type": "text",
+      "userCanEdit": false,
+      "adminOnly": true
+    },
+    {
+      "key": "workspaces",
+      "name": "Workspaces to Search",
+      "description": "Comma delimited list of workspaces to search.  If left blank, all workspaces accessible to the provided API key or user will be searched.  Workspace names are case-sensitive.  This option should be set to \"Only admins can view and edit\"",
+      "default": "",
+      "type": "text",
+      "userCanEdit": false,
+      "adminOnly": true
+    },
+    {
+      "key": "searchTypes",
+      "name": "Types to Search",
+      "description": "Choose the data types that should be searched",
+      "default": [
+        {
+          "value": "incident",
+          "display": "Incidents"
+        }
+      ],
+      "type": "select",
+      "options": [
+        {
+          "value": "incident",
+          "display": "Incidents"
+        },
+        {
+          "value": "task",
+          "display": "Tasks"
+        },
+        {
+          "value": "note",
+          "display": "Notes"
+        },
+        {
+          "value": "artifact",
+          "display": "Artifacts"
+        }
+      ],
+      "multiple": true,
+      "userCanEdit": false,
+      "adminOnly": true
+    },
+    {
+      "key": "daysToSearch",
+      "name": "Days to Search",
+      "description": "The number of days back to search. For example, if set to 365, the integration will limit results to incidents created in the last 365 days. Defaults to 365 days.",
+      "default": 365,
+      "type": "number",
+      "userCanEdit": false,
+      "adminOnly": true
+    },
+    {
+      "key": "blocklist",
+      "name": "Ignored List",
+      "description": "List of domains or IPs (space delimited) that you never want to send to DNSDB",
+      "default": "",
+      "type": "text",
+      "userCanEdit": false,
+      "adminOnly": false
+    },
+    {
+      "key": "domainBlocklistRegex",
+      "name": "Ignored Domain Regex",
+      "description": "Domains that match the given regex will not be looked up.  Should be set to \"Only admins can view and edit\".",
+      "default": "",
+      "type": "text",
+      "userCanEdit": false,
+      "adminOnly": false
+    }
+  ]
+}
