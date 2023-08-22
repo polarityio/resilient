@@ -472,14 +472,16 @@ function _getUniqueIncidentSearchResults(searchResults) {
 
 function _getSummaryTags(incidents) {
   const tags = [];
-  for (let i = 0; i < MAX_SUMMARY_TAGS && i < incidents.length; i++) {
-    const incident = incidents[i];
-    tags.push(`[#${incident.inc_id}] ${incident.inc_name}`);
+
+  if (MAX_SUMMARY_TAGS <= incidents.length) {
+    tags.push(`+${incidents.length - tags.length} incidents`);
+  } else {
+    for (let i = 0; i < incidents.length; i++) {
+      const incident = incidents[i];
+      tags.push(`[#${incident.inc_id}] ${incident.inc_name}`);
+    }
   }
 
-  if (tags.length < incidents.length) {
-    tags.push(`+${incidents.length - tags.length} incidents`);
-  }
   return tags;
 }
 
