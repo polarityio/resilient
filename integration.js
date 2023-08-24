@@ -11,7 +11,6 @@ const MAX_TOP_LEVEL_COMMENTS = 15;
 
 // Currently MAX_SUMMARY_TAGS and MAX_INCIDENTS_TO_RETURN should have the same value
 // Otherwise, we may show a summary tag for an incident we don't show information for
-const MAX_SUMMARY_TAGS = 10;
 const MAX_INCIDENTS_TO_RETURN = 10;
 
 let Logger;
@@ -473,16 +472,7 @@ function _getUniqueIncidentSearchResults(searchResults) {
 function _getSummaryTags(incidents) {
   const tags = [];
 
-  if (MAX_SUMMARY_TAGS <= incidents.length) {
-    tags.push(`+${incidents.length - tags.length} incidents`);
-  } else {
-    for (let i = 0; i < incidents.length; i++) {
-      const incident = incidents[i];
-      tags.push(`[#${incident.inc_id}] ${incident.inc_name}`);
-    }
-  }
-
-  return tags;
+  return tags.push(`${incidents.length} Incidents`);
 }
 
 function _handleRestErrors(response, body) {
