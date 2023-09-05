@@ -70,13 +70,7 @@ module.exports = {
     ca: '',
     // An HTTP proxy to be used. Supports proxy Auth with Basic Auth, identical to support for
     // the url parameter (by embedding the auth info in the uri)
-    proxy: '',
-    /**
-     * If set to false, the integration will ignore SSL errors.  This will allow the integration to connect
-     * to servers without valid SSL certificates.  Please note that we do NOT recommending setting this
-     * to false in a production environment.
-     */
-    rejectUnauthorized: true
+    proxy: ''
   },
   logging: {
     level: 'info' //trace, debug, info, warn, error, fatal
@@ -93,6 +87,15 @@ module.exports = {
       key: 'url',
       name: 'Resilient URL',
       description: 'Your Resilient URL to include the schema (i.e., https://)',
+      default: '',
+      type: 'text',
+      userCanEdit: false,
+      adminOnly: true
+    },
+    {
+      key: 'orgId',
+      name: 'Resilient Org ID',
+      description: 'Your Resilient Org ID',
       default: '',
       type: 'text',
       userCanEdit: false,
@@ -139,18 +142,10 @@ module.exports = {
       adminOnly: false
     },
     {
-      key: 'orgId',
-      name: 'Resilient Org ID',
-      description: 'Your Resilient Org ID',
-      default: '',
-      type: 'text',
-      userCanEdit: false,
-      adminOnly: true
-    },
-    {
       key: 'workspaces',
       name: 'Workspaces to Search',
-      description: 'Comma delimited list of workspaces to search.  If left blank, all workspaces accessible to the provided API key or user will be searched.  Workspace names are case-sensitive.  This option should be set to "Only admins can view and edit"',
+      description:
+        'Comma delimited list of workspaces to search.  If left blank, all workspaces accessible to the provided API key or user will be searched.  Workspace names are case-sensitive.  This option should be set to "Only admins can view and edit"',
       default: '',
       type: 'text',
       userCanEdit: false,
@@ -192,7 +187,8 @@ module.exports = {
     {
       key: 'daysToSearch',
       name: 'Days to Search',
-      description: 'The number of days back to search. For example, if set to 365, the integration will limit results to incidents created in the last 365 days. Defaults to 365 days.',
+      description:
+        'The number of days back to search. For example, if set to 365, the integration will limit results to incidents created in the last 365 days. Defaults to 365 days.',
       default: 365,
       type: 'number',
       userCanEdit: false,

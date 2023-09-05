@@ -4,21 +4,14 @@
   "acronym": "RES",
   "defaultColor": "dark-purple",
   "description": "Query incidents within the IBM Resilient Incident Response Platform",
-  "entityTypes": [
-    "IPv4",
-    "domain",
-    "email",
-    "hash"
-  ],
+  "entityTypes": ["IPv4", "domain", "email", "hash"],
   "customTypes": [
     {
       "key": "ldapUsername",
       "regex": "\\b[A-Z]{1}[0-9]{6}\\b"
     }
   ],
-  "styles": [
-    "./styles/resilient.less"
-  ],
+  "styles": ["./styles/resilient.less"],
   "block": {
     "component": {
       "file": "./components/block.js"
@@ -32,8 +25,7 @@
     "key": "",
     "passphrase": "",
     "ca": "",
-    "proxy": "",
-    "rejectUnauthorized": true
+    "proxy": ""
   },
   "logging": {
     "level": "info"
@@ -43,6 +35,15 @@
       "key": "url",
       "name": "Resilient URL",
       "description": "Your Resilient URL to include the schema (i.e., https://)",
+      "default": "",
+      "type": "text",
+      "userCanEdit": false,
+      "adminOnly": true
+    },
+    {
+      "key": "orgId",
+      "name": "Resilient Org ID",
+      "description": "Your Resilient Org ID",
       "default": "",
       "type": "text",
       "userCanEdit": false,
@@ -83,15 +84,6 @@
       "type": "password",
       "userCanEdit": true,
       "adminOnly": false
-    },
-    {
-      "key": "orgId",
-      "name": "Resilient Org ID",
-      "description": "Your Resilient Org ID",
-      "default": "",
-      "type": "text",
-      "userCanEdit": false,
-      "adminOnly": true
     },
     {
       "key": "workspaces",
