@@ -472,7 +472,9 @@ function _getUniqueIncidentSearchResults(searchResults) {
 function _getSummaryTags(incidents) {
   const tags = [];
 
-  return tags.push(`${incidents.length} Incidents`);
+  tags.push(`${incidents.length} Incident${incidents.length > 1 ? 's' : ''}`);
+
+  return tags;
 }
 
 function _handleRestErrors(response, body) {
