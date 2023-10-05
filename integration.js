@@ -348,9 +348,7 @@ function _createSearch(entityObj, options, searchTypes) {
 
   const search = {
     org_id: options.orgId,
-    // Note that putting the search value in quotes does not result in an exact match search
-    // The search is always a full text search
-    query: entityObj.value,
+    query: `"${entityObj.value}"`,
     min_required_results: 0,
     types: searchTypes,
     filters: {
