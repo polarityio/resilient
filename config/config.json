@@ -4,7 +4,7 @@
   "acronym": "RES",
   "defaultColor": "dark-purple",
   "description": "Query incidents within the IBM Resilient Incident Response Platform",
-  "entityTypes": ["IPv4", "domain", "email", "hash"],
+  "entityTypes": ["IPv4", "domain", "email", "MD5", "SHA1", "SHA256"],
   "customTypes": [
     {
       "key": "ldapUsername",
@@ -19,13 +19,6 @@
     "template": {
       "file": "./templates/block.hbs"
     }
-  },
-  "request": {
-    "cert": "",
-    "key": "",
-    "passphrase": "",
-    "ca": "",
-    "proxy": ""
   },
   "logging": {
     "level": "info"
