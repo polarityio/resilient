@@ -24,7 +24,7 @@ module.exports = {
    * @optional
    */
   description: 'Query incidents within the IBM Resilient Incident Response Platform',
-  entityTypes: ['IPv4', 'domain', 'email', 'hash'],
+  entityTypes: ['IPv4', 'domain', 'email', 'MD5', 'SHA1', 'SHA256'],
   customTypes: [
     {
       key: 'ldapUsername',
