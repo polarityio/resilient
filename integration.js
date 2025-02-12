@@ -185,7 +185,8 @@ function createToken(options, cb) {
 function doLookup(entities, options, cb) {
   _setupRegexBlocklists(options);
   options.url = options.url.endsWith('/') ? options.url.slice(0, -1) : options.url;
-
+  options.urlUi = options.urlUi.endsWith('/') ? options.urlUi.slice(0, -1) : options.urlUi;
+  
   let lookupResults = [];
 
   const searchTypes = options.searchTypes.map((type) => type.value);
@@ -408,7 +409,8 @@ function _lookupEntity(entityObj, options, searchTypes, cb) {
           matchesByIncidentId,
           totalIncidentCount,
           incidents,
-          host: options.url
+          host: options.url,
+          uiUrl: typeof options.urlUi === 'string' && options.urlUi.trim().length > 0 ? options.urlUi : options.url
         }
       }
     });

@@ -1,5 +1,5 @@
 <div class="mb-1">
-  <a href="{{details.host}}/#search?q={{block.entity.value}}">
+  <a href="{{details.uiUrl}}/#search?q={{block.entity.value}}">
   Run search in Resilient {{fa-icon "external-link-square" fixedWidth=true class="external-icon"}}
   </a>
 </div>
@@ -32,13 +32,13 @@
       <div class="tab-container">
         {{#if incident.id}}
             <div class="view-in-link">
-                <a class="p-link" href="{{details.host}}/#incidents/{{incident.id}}">
+                <a class="p-link" href="{{details.uiUrl}}/#incidents/{{incident.id}}">
                     View #{{incident.id}} in Resilient {{fa-icon "external-link-square" fixedWidth=true class="external-icon"}}
                 </a>
             </div>
         {{else}}
             <div class="view-in-link">
-                <a class="p-link" href="{{details.host}}/#incidents/{{incident.obj_id}}">
+                <a class="p-link" href="{{details.uiUrl}}/#incidents/{{incident.obj_id}}">
                     View #{{incident.obj_id}} in Resilient {{fa-icon "external-link-square" fixedWidth=true class="external-icon"}}
                 </a>
             </div>
@@ -160,7 +160,7 @@
 {{/each}}
 {{#if (not-eq details.incidents.length details.totalIncidentCount)}}
   <div class="pt-2">
-    <a href="{{details.host}}/#search?q={{block.entity.value}}">
+    <a href="{{details.uiUrl}}/#search?q={{block.entity.value}}">
      View {{sub details.totalIncidentCount details.incidents.length}} additional incidents in Resilient {{fa-icon "external-link-square" fixedWidth=true class="external-icon"}}
     </a>
   </div>
