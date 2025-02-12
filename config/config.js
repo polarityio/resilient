@@ -93,6 +93,16 @@ module.exports = {
       adminOnly: true
     },
     {
+      key: 'urlUi',
+      name: 'Resilient Web App URL',
+      description:
+        'Your Resilient Web App URL to include the schema (i.e., https://).  Should be set to the URL you use to login to Resilient.  If left blank, the "Resilient API URL" will be used as the App URL.',
+      default: '',
+      type: 'text',
+      userCanEdit: false,
+      adminOnly: true
+    },
+    {
       key: 'orgId',
       name: 'Resilient Org ID',
       description: 'Your Resilient Org ID',
