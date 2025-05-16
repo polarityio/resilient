@@ -85,8 +85,8 @@ module.exports = {
   options: [
     {
       key: 'url',
-      name: 'Resilient URL',
-      description: 'Your Resilient URL to include the schema (i.e., https://)',
+      name: 'Resilient API URL',
+      description: 'Your Resilient API URL to include the schema (i.e., https://)',
       default: '',
       type: 'text',
       userCanEdit: false,
@@ -98,6 +98,26 @@ module.exports = {
       description:
         'Your Resilient Web App URL to include the schema (i.e., https://).  Should be set to the URL you use to login to Resilient.  If left blank, the "Resilient API URL" will be used as the App URL.',
       default: '',
+      type: 'text',
+      userCanEdit: false,
+      adminOnly: true
+    },
+    {
+      key: 'searchUrlPath',
+      name: 'Resilient Search URL Path',
+      description:
+        'The search URL Path for your Resilient instance.  This URL path is used to construct the URL used when users click on a search result to run the search in Resilient. The path is appended to the "Resilient Web App URL".  The string "{{entity}}" is replaced with the actual entity value.',
+      default: '/#search?q={{entity}}',
+      type: 'text',
+      userCanEdit: false,
+      adminOnly: true
+    },
+    {
+      key: 'incidentUrlPath',
+      name: 'Resilient View Incident URL Path',
+      description:
+        'The incident URL Path for your Resilient instance.  This URL path is used to construct the URL used when users click to view an incident within in Resilient. The path is appended to the "Resilient Web App URL".  The string "{{incident}}" is replaced with the incident ID value.',
+      default: '/#incidents/{{incident}}',
       type: 'text',
       userCanEdit: false,
       adminOnly: true
