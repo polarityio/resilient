@@ -186,7 +186,7 @@ function doLookup(entities, options, cb) {
   _setupRegexBlocklists(options);
   options.url = options.url.endsWith('/') ? options.url.slice(0, -1) : options.url;
   options.urlUi = options.urlUi.endsWith('/') ? options.urlUi.slice(0, -1) : options.urlUi;
-  
+
   let lookupResults = [];
 
   const searchTypes = options.searchTypes.map((type) => type.value);
@@ -400,6 +400,33 @@ function _lookupEntity(entityObj, options, searchTypes, cb) {
       body.results
     );
 
+    // Construct various URLs to send to component. `uiUrl` will never have a trailing `/`
+    let uiUrl = typeof options.urlUi === 'string' && options.urlUi.trim().length > 0 ? options.urlUi : options.url;
+    uiUrl = uiUrl.endsWith('/') ? uiUrl.slice(0, -1) : uiUrl;
+    // Search URL path will always have the `/` prepended if needed
+    const searchUrlPath =
+      typeof options.searchUrlPath === 'string' && options.searchUrlPath.trim().length > 0
+        ? options.searchUrlPath.startsWith('/')
+          ? options.searchUrlPath
+          : `/${options.searchUrlPath}`
+        : '/#search?q={{entity}}';
+    // View incident URL path will always have the `/` prepended if needed
+    const viewIncidentUrlPath =
+      typeof options.incidentUrlPath === 'string' && options.incidentUrlPath.trim().length > 0
+        ? options.incidentUrlPath.startsWith('/')
+          ? options.incidentUrlPath
+          : `/${options.incidentUrlPath}`
+        : '/#incidents/{{incident}}';
+    const searchUrl = `${uiUrl}${searchUrlPath.replace(/{{entity}}/g, encodeURIComponent(entityObj.value))}`;
+
+    // Add the view incident URL to each incident object
+    incidents.forEach((incident) => {
+      incident.__viewIncidentUrl = `${uiUrl}${viewIncidentUrlPath.replace(
+        /{{incident}}/g,
+        encodeURIComponent(incident.id ? incident.id : incident.obj_id)
+      )}`;
+    });
+
     cb(null, {
       entity: entityObj,
       data: {
@@ -409,8 +436,7 @@ function _lookupEntity(entityObj, options, searchTypes, cb) {
           matchesByIncidentId,
           totalIncidentCount,
           incidents,
-          host: options.url,
-          uiUrl: typeof options.urlUi === 'string' && options.urlUi.trim().length > 0 ? options.urlUi : options.url
+          searchUrl
         }
       }
     });
