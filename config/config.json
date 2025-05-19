@@ -84,8 +84,8 @@
       "description": "Your Resilient API Key ID. You must authenticate with either an \"API Key ID\" and \"API Key Secret\", or a \"username\" and \"password\", but not both.",
       "default": "",
       "type": "text",
-      "userCanEdit": true,
-      "adminOnly": false
+      "userCanEdit": false,
+      "adminOnly": true
     },
     {
       "key": "apiKeySecret",
@@ -93,8 +93,8 @@
       "description": "Your Resilient API Key Secret token value. You must authenticate with either an \"API Key ID\" and \"API Key Secret\", or a \"username\" and \"password\", but not both.",
       "default": "",
       "type": "password",
-      "userCanEdit": true,
-      "adminOnly": false
+      "userCanEdit": false,
+      "adminOnly": true
     },
     {
       "key": "username",
@@ -102,8 +102,8 @@
       "description": "Your Resilient username.  (We recommend using the API Key ID, and API Key Secret authentication options)",
       "default": "",
       "type": "text",
-      "userCanEdit": true,
-      "adminOnly": false
+      "userCanEdit": false,
+      "adminOnly": true
     },
     {
       "key": "password",
@@ -111,8 +111,8 @@
       "description": "Your Resilient password. (We recommend using the API Key ID, and API Key Secret authentication options)",
       "default": "",
       "type": "password",
-      "userCanEdit": true,
-      "adminOnly": false
+      "userCanEdit": false,
+      "adminOnly": true
     },
     {
       "key": "workspaces",
@@ -172,7 +172,7 @@
       "default": "",
       "type": "text",
       "userCanEdit": false,
-      "adminOnly": false
+      "adminOnly": true
     },
     {
       "key": "domainBlocklistRegex",
@@ -181,7 +181,7 @@
       "default": "",
       "type": "text",
       "userCanEdit": false,
-      "adminOnly": false
+      "adminOnly": true
     }
   ]
 }
