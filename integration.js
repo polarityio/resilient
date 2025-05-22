@@ -224,15 +224,18 @@ function doLookup(entities, options, cb) {
         }
       });
     },
-    (err) => {
-      cb(err, lookupResults);
+    (error) => {
+      if (error) {
+        Logger.error({ error }, 'Error in doLookup');
+      }
+      cb(error, lookupResults);
     }
   );
 }
 
 function _getArtifactFilters(entityObj, searchWindow, workspaces) {
   const filter = [
-    // note that this filter only applies to type artifact and will not effect other types
+    // note that this filter only applies to type artifact and will not affect other types
     {
       conditions: [
         {
@@ -373,7 +376,7 @@ function _lookupEntity(entityObj, options, searchTypes, cb) {
 
   Logger.debug({ request: requestOptions }, 'search_ex request options');
 
-  authenticatedRequest(options, requestOptions, function (err, response, body) {
+  authenticatedRequest(options, requestOptions, async function (err, response, body) {
     if (err) {
       Logger.error({ err: err, response: response }, 'Error in _lookupEntity() requestWithDefault');
       return cb({
@@ -392,54 +395,57 @@ function _lookupEntity(entityObj, options, searchTypes, cb) {
       return;
     }
 
-    // incidentSummaries: Array of incident summary objects which contain the inc_id, and inc_name properties
-    // matchesByIncidentId: object keyed on incident id. Each id points to an array of match objects
-    //                      each match object has a `type_id` property
-    // incidents: array of incident result objects
-    const { incidentSummaries, matchesByIncidentId, incidents, totalIncidentCount } = _getUniqueIncidentSearchResults(
-      body.results
-    );
+    try {
+      // incidentSummaries: Array of incident summary objects which contain the inc_id, and inc_name properties
+      // matchesByIncidentId: object keyed on incident id. Each id points to an array of match objects
+      //                      each match object has a `type_id` property
+      // incidents: array of incident result objects
+      let { incidentSummaries, matchesByIncidentId, incidents, totalIncidentCount } =
+        await _getUniqueIncidentSearchResults(body.results, options);
 
-    // Construct various URLs to send to component. `uiUrl` will never have a trailing `/`
-    let uiUrl = typeof options.urlUi === 'string' && options.urlUi.trim().length > 0 ? options.urlUi : options.url;
-    uiUrl = uiUrl.endsWith('/') ? uiUrl.slice(0, -1) : uiUrl;
-    // Search URL path will always have the `/` prepended if needed
-    const searchUrlPath =
-      typeof options.searchUrlPath === 'string' && options.searchUrlPath.trim().length > 0
-        ? options.searchUrlPath.startsWith('/')
-          ? options.searchUrlPath
-          : `/${options.searchUrlPath}`
-        : '/#search?q={{entity}}';
-    // View incident URL path will always have the `/` prepended if needed
-    const viewIncidentUrlPath =
-      typeof options.incidentUrlPath === 'string' && options.incidentUrlPath.trim().length > 0
-        ? options.incidentUrlPath.startsWith('/')
-          ? options.incidentUrlPath
-          : `/${options.incidentUrlPath}`
-        : '/#incidents/{{incident}}';
-    const searchUrl = `${uiUrl}${searchUrlPath.replace(/{{entity}}/g, encodeURIComponent(entityObj.value))}`;
+      // Construct various URLs to send to component. `uiUrl` will never have a trailing `/`
+      let uiUrl = typeof options.urlUi === 'string' && options.urlUi.trim().length > 0 ? options.urlUi : options.url;
+      uiUrl = uiUrl.endsWith('/') ? uiUrl.slice(0, -1) : uiUrl;
+      // Search URL path will always have the `/` prepended if needed
+      const searchUrlPath =
+        typeof options.searchUrlPath === 'string' && options.searchUrlPath.trim().length > 0
+          ? options.searchUrlPath.startsWith('/')
+            ? options.searchUrlPath
+            : `/${options.searchUrlPath}`
+          : '/#search?q={{entity}}';
+      // View incident URL path will always have the `/` prepended if needed
+      const viewIncidentUrlPath =
+        typeof options.incidentUrlPath === 'string' && options.incidentUrlPath.trim().length > 0
+          ? options.incidentUrlPath.startsWith('/')
+            ? options.incidentUrlPath
+            : `/${options.incidentUrlPath}`
+          : '/#incidents/{{incident}}';
+      const searchUrl = `${uiUrl}${searchUrlPath.replace(/{{entity}}/g, encodeURIComponent(entityObj.value))}`;
 
-    // Add the view incident URL to each incident object
-    incidents.forEach((incident) => {
-      incident.__viewIncidentUrl = `${uiUrl}${viewIncidentUrlPath.replace(
-        /{{incident}}/g,
-        encodeURIComponent(incident.id ? incident.id : incident.obj_id)
-      )}`;
-    });
+      // Add the view incident URL to each incident object
+      incidents.forEach((incident) => {
+        incident.__viewIncidentUrl = `${uiUrl}${viewIncidentUrlPath.replace(
+          /{{incident}}/g,
+          encodeURIComponent(incident.id ? incident.id : incident.obj_id)
+        )}`;
+      });
 
-    cb(null, {
-      entity: entityObj,
-      data: {
-        summary: _getSummaryTags(incidentSummaries),
-        details: {
-          comments: [], // comments are loaded via onMessage
-          matchesByIncidentId,
-          totalIncidentCount,
-          incidents,
-          searchUrl
+      cb(null, {
+        entity: entityObj,
+        data: {
+          summary: _getSummaryTags(incidentSummaries),
+          details: {
+            comments: [], // comments are loaded via onMessage
+            matchesByIncidentId,
+            totalIncidentCount,
+            incidents,
+            searchUrl
+          }
         }
-      }
-    });
+      });
+    } catch (error) {
+      return cb(error);
+    }
   });
 }
 
@@ -454,45 +460,87 @@ function _lookupEntity(entityObj, options, searchTypes, cb) {
  * the entire result set.
  *
  * @param searchResults
- * @returns {{searchResultsById: {}, incidentIds: any[]}}
+ * @returns {Promise<{incidentSummaries: *, matchesByIncidentId: *, incidents: *, totalIncidentCount: *}>}
  * @private
  */
-function _getUniqueIncidentSearchResults(searchResults) {
-  let uniqueIncidentIds = new Set();
-  let uniqueIncidents = {};
-  let matchesByIncidentId = {};
-  let incidentSummaries = [];
-  let incidents = [];
+async function _getUniqueIncidentSearchResults(searchResults, options) {
+  // Set of incident IDs referenced by search results. All search results reference an incident Id but the referenced
+  // incident ID may or may not be included in the search results.  For example, if a Note matches on the search term,
+  // the Incident associated with the note might not be in the search results.  As a result, we would need to fetch
+  // the incident associated with the Note.
+  const referencedIncidentIdsSet = new Set();
+  // Set of incident Ids for incident search results
+  const uniqueAvailableIncidentIds = new Set();
+
+  // List of incidents we need to fetch because the incident is referenced by a search result, but is not in the
+  // search results itself.
+  const incidentsToFetch = [];
+  //object keyed on incident id. Each id points to an array of match objects where each match object has a `type_id` property
+  const matchesByIncidentId = {};
+  // array of incident summary objects which contain the inc_id, and inc_name properties used to create summary tags
+  const incidentSummaries = [];
+  // list of all incidents referenced by the search
+  const incidents = [];
 
   searchResults.forEach((result) => {
-    if (result.type_id === 'incident' && incidents.length < MAX_INCIDENTS_TO_RETURN) {
-      if (result.result.plan_status === 'A') {
-        result.result.plan_status_human = 'Active';
-      }
-      if (result.result.plan_status === 'C') {
-        result.result.plan_status_human = 'Closed';
-      }
+    const referencedIncidentId = result.inc_id;
+    if (result.type_id === 'incident') {
       incidents.push(result);
+      uniqueAvailableIncidentIds.add(referencedIncidentId);
     }
-    const incidentId = result.inc_id;
-    uniqueIncidentIds.add(incidentId);
-    uniqueIncidents[incidentId] = result;
-    if (!Array.isArray(matchesByIncidentId[incidentId])) {
-      matchesByIncidentId[incidentId] = [];
+    referencedIncidentIdsSet.add(referencedIncidentId);
+
+    // uniqueIncidents[incidentId] = result;
+    if (!Array.isArray(matchesByIncidentId[referencedIncidentId])) {
+      matchesByIncidentId[referencedIncidentId] = [];
     }
-    matchesByIncidentId[incidentId].push(result);
+    matchesByIncidentId[referencedIncidentId].push(result);
   });
 
-  const incidentIds = Array.from(uniqueIncidentIds);
-  incidentIds.forEach((incidentId) => {
-    const incidentSearchResult = uniqueIncidents[incidentId];
-    incidentSummaries.push({
-      inc_id: incidentSearchResult.inc_id,
-      inc_name: incidentSearchResult.inc_name
+  // These are the incidents that we need to fetch because they were referenced in our
+  // search results, but we don't have an incident for them yet
+  referencedIncidentIdsSet.forEach((incidentId) => {
+    if (!uniqueAvailableIncidentIds.has(incidentId)) {
+      incidentsToFetch.push(incidentId);
+    }
+  });
+
+  // Fetch all the missing incidents
+  await async.eachLimit(incidentsToFetch, 5, async (incidentId) => {
+    const incident = await getIncidentById(incidentId, options);
+    incidents.push({
+      type_id: 'incident',
+      org_id: incident.org_id,
+      obj_id: incident.id,
+      inc_id: incident.id,
+      inc_name: incident.name,
+      result: incident
     });
   });
 
-  return { incidentSummaries, matchesByIncidentId, incidents, totalIncidentCount: incidentIds.length };
+  // Enrich our incidents
+  incidents.forEach((incident) => {
+    if (incident.plan_status === 'A') {
+      incident.plan_status_human = 'Active';
+    }
+    if (incident.plan_status === 'C') {
+      incident.plan_status_human = 'Closed';
+    }
+  });
+
+  // Create our incident summaries which are used for creating summary tags
+  incidents.forEach((incident) => {
+    incidentSummaries.push({
+      inc_id: incident.inc_id,
+      inc_name: incident.inc_name
+    });
+  });
+
+  // incidentSummaries: Array of incident summary objects which contain the inc_id, and inc_name properties
+  // matchesByIncidentId: object keyed on incident id. Each id points to an array of match objects
+  //                      each match object has a `type_id` property
+  // incidents: array of incident result objects
+  return { incidentSummaries, matchesByIncidentId, incidents, totalIncidentCount: incidents.length };
 }
 
 function _getSummaryTags(incidents) {
@@ -623,6 +671,47 @@ function createComment(incidentId, note, options, cb) {
   });
 }
 
+async function getIncidentById(incidentId, options) {
+  return new Promise(function (resolve, reject) {
+    const requestOptions = {
+      uri: `${options.url}/rest/orgs/${options.orgId}/incidents/${incidentId}`,
+      method: 'GET',
+      json: true
+    };
+
+    Logger.trace({ requestOptions: requestOptions }, 'GetIncidentById request options');
+
+    authenticatedRequest(options, requestOptions, (err, resp, body) => {
+      // Note that a 404 will be returned if an incident is not found.  We treat this as error
+      // since we always expect the incident to be there for our use case
+      if (err || resp.statusCode !== 200) {
+        Logger.error(
+          {
+            err,
+            statusCode: resp ? resp.statusCode : 'unknown',
+            requestOptions,
+            body
+          },
+          `Error getting incident ${incidentId}`
+        );
+
+        reject(
+          Object.assign(new Error(`Error fetching incident ${incidentId}`), {
+            detail: `Error fetching incident ${incidentId}`,
+            statusCode: resp ? resp.statusCode : 'unknown',
+            body,
+            err
+          })
+        );
+      }
+
+      Logger.trace({ incident: body }, 'GetIncidentById incident');
+
+      resolve(body);
+    });
+  });
+}
+
 function getComments(incidentId, options, cb) {
   let requestOptions = {
     uri: `${options.url}/rest/orgs/${options.orgId}/incidents/${incidentId}/comments`,
@@ -636,18 +725,18 @@ function getComments(incidentId, options, cb) {
     if (err || resp.statusCode !== 200 || !Array.isArray(body)) {
       Logger.error(
         {
-          err: err,
-          statusCode: resp ? resp.statusCode : 'unknown',
-          requestOptions: requestOptions,
-          body: body
+          err,
+          statusCode: resp ? resp.statusCode : 'N/A',
+          requestOptions,
+          body
         },
-        'error getting comments'
+        `Error getting comments for incident ${incidentId}`
       );
 
       return cb({
-        err: err,
-        statusCode: resp ? resp.statusCode : 'unknown',
-        body: body
+        err,
+        statusCode: resp ? resp.statusCode : 'N/A',
+        body
       });
     }
 
@@ -662,6 +751,8 @@ function getComments(incidentId, options, cb) {
 }
 
 function onMessage(payload, options, cb) {
+  options.url = options.url.endsWith('/') ? options.url.slice(0, -1) : options.url;
+  
   Logger.trace(`Received ${payload.type} message`);
   switch (payload.type) {
     case 'CREATE_COMMENT':
