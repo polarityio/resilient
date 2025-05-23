@@ -536,6 +536,9 @@ async function _getUniqueIncidentSearchResults(searchResults, options) {
     });
   });
 
+  // Sort incidents by create_date field in descending order.  The create_date field is a unix timestamp
+  incidents.sort((a, b) => b.result.create_date - a.result.create_date);
+
   // incidentSummaries: Array of incident summary objects which contain the inc_id, and inc_name properties
   // matchesByIncidentId: object keyed on incident id. Each id points to an array of match objects
   //                      each match object has a `type_id` property
