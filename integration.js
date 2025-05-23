@@ -18,6 +18,11 @@ let requestWithDefaults;
 let authenticatedRequest;
 let previousDomainRegexAsString = '';
 let domainBlocklistRegex = null;
+let previousWorkspacesOptionValue = null;
+
+// List of workspace IDs that we will return results for
+let workspacesToSearchById;
+let workspacesToSearchByName;
 
 function startup(logger) {
   Logger = logger;
@@ -182,10 +187,22 @@ function createToken(options, cb) {
   }
 }
 
-function doLookup(entities, options, cb) {
-  _setupRegexBlocklists(options);
+async function doLookup(entities, options, cb) {
   options.url = options.url.endsWith('/') ? options.url.slice(0, -1) : options.url;
   options.urlUi = options.urlUi.endsWith('/') ? options.urlUi.slice(0, -1) : options.urlUi;
+
+  _setupRegexBlocklists(options);
+
+  if (!workspacesToSearchByName || options.workspaces.trim() !== previousWorkspacesOptionValue) {
+    workspacesToSearchByName = options.workspaces.split(',').reduce((accum, workspace) => {
+      if (workspace.trim().length > 0) {
+        accum.push(workspace.trim());
+      }
+      return accum;
+    }, []);
+  }
+
+  await maybeLoadWorkspaces(options);
 
   let lookupResults = [];
 
@@ -233,7 +250,7 @@ function doLookup(entities, options, cb) {
   );
 }
 
-function _getArtifactFilters(entityObj, searchWindow, workspaces) {
+function _getArtifactFilters(entityObj, searchWindow) {
   const filter = [
     // note that this filter only applies to type artifact and will not affect other types
     {
@@ -252,14 +269,6 @@ function _getArtifactFilters(entityObj, searchWindow, workspaces) {
     }
   ];
 
-  if (workspaces.length > 0) {
-    filter[0].conditions.push({
-      method: 'in',
-      field_name: 'workspace',
-      value: workspaces
-    });
-  }
-
   return filter;
 }
 
@@ -276,18 +285,18 @@ function _getIncidentFilters(entityObj, searchWindow, workspaces) {
     }
   ];
 
-  if (workspaces.length > 0) {
+  if (workspacesToSearchByName.length > 0) {
     filter[0].conditions.push({
       method: 'in',
       field_name: 'workspace',
-      value: workspaces
+      value: workspacesToSearchByName
     });
   }
 
   return filter;
 }
 
-function _getTaskFilters(entityObj, searchWindow, workspaces) {
+function _getTaskFilters(entityObj, searchWindow) {
   const filter = [
     {
       conditions: [
@@ -300,18 +309,10 @@ function _getTaskFilters(entityObj, searchWindow, workspaces) {
     }
   ];
 
-  if (workspaces.length > 0) {
-    filter[0].conditions.push({
-      method: 'in',
-      field_name: 'workspace',
-      value: workspaces
-    });
-  }
-
   return filter;
 }
 
-function _getNoteFilters(entityObj, searchWindow, workspaces) {
+function _getNoteFilters(entityObj, searchWindow) {
   const filter = [
     {
       conditions: [
@@ -329,26 +330,12 @@ function _getNoteFilters(entityObj, searchWindow, workspaces) {
     }
   ];
 
-  if (workspaces.length > 0) {
-    filter[0].conditions.push({
-      method: 'in',
-      field_name: 'workspace',
-      value: workspaces
-    });
-  }
-
   return filter;
 }
 
 function _createSearch(entityObj, options, searchTypes) {
   const today = new Date();
   const searchWindow = today.setDate(today.getDate() - parseInt(options.daysToSearch, 10));
-  const workspaces = options.workspaces.split(',').reduce((accum, workspace) => {
-    if (workspace.trim().length > 0) {
-      accum.push(workspace.trim());
-    }
-    return accum;
-  }, []);
 
   const search = {
     org_id: options.orgId,
@@ -356,10 +343,10 @@ function _createSearch(entityObj, options, searchTypes) {
     min_required_results: 0,
     types: searchTypes,
     filters: {
-      artifact: _getArtifactFilters(entityObj, searchWindow, workspaces),
-      incident: _getIncidentFilters(entityObj, searchWindow, workspaces),
-      task: _getTaskFilters(entityObj, searchWindow, workspaces),
-      note: _getNoteFilters(entityObj, searchWindow, workspaces)
+      artifact: _getArtifactFilters(entityObj, searchWindow),
+      incident: _getIncidentFilters(entityObj, searchWindow),
+      task: _getTaskFilters(entityObj, searchWindow),
+      note: _getNoteFilters(entityObj, searchWindow)
     }
   };
 
@@ -460,6 +447,7 @@ function _lookupEntity(entityObj, options, searchTypes, cb) {
  * the entire result set.
  *
  * @param searchResults
+ * @param workspaces the workspaces to filter on
  * @returns {Promise<{incidentSummaries: *, matchesByIncidentId: *, incidents: *, totalIncidentCount: *}>}
  * @private
  */
@@ -508,14 +496,26 @@ async function _getUniqueIncidentSearchResults(searchResults, options) {
   // Fetch all the missing incidents
   await async.eachLimit(incidentsToFetch, 5, async (incidentId) => {
     const incident = await getIncidentById(incidentId, options);
-    incidents.push({
-      type_id: 'incident',
-      org_id: incident.org_id,
-      obj_id: incident.id,
-      inc_id: incident.id,
-      inc_name: incident.name,
-      result: incident
-    });
+
+    // check if the incident is part of our workspaces to search
+    // We need to do this filtering because workspace filtering only works on incidents and not
+    // notes, artifacts, and tasks.  This means we have to look up the incident associated with the
+    // note, artifact, or task and then check if the workspace id on the incident is in our workspaces
+    // to search.
+    if (!workspacesToSearchById || workspacesToSearchById.includes(incident.workspace)) {
+      incidents.push({
+        type_id: 'incident',
+        org_id: incident.org_id,
+        obj_id: incident.id,
+        inc_id: incident.id,
+        inc_name: incident.name,
+        result: incident
+      });
+    } else {
+      // The incident wasn't in our workspace ids to search so we delete any matching
+      // search results for this incident.
+      delete matchesByIncidentId[incident.id];
+    }
   });
 
   // Enrich our incidents
@@ -671,6 +671,98 @@ function createComment(incidentId, note, options, cb) {
   });
 }
 
+/**
+ * When filtering by workspace via the search endpoint the API requires we use the workspace name.  However, when
+ * we retrieve incidents related to notes/artifacts/tasks, those incident objects only have a workspace id.
+ * As a result, we need to fetch all the workspaces
+ *
+ * @param options
+ * @returns {Promise<void>}
+ */
+async function maybeLoadWorkspaces(options) {
+  // Don't need to load workspaces if the option isn't being used
+  if (options.workspaces.trim().length === 0) {
+    return;
+  }
+
+  // Load workspaces if we haven't done it before, or if the workspaces option has changed
+  if (!workspacesToSearchById || options.workspaces !== previousWorkspacesOptionValue) {
+    try {
+      workspacesToSearchById = [];
+      const workspaces = await getWorkspaces(options);
+      workspaces.forEach((workspace) => {
+        // check if the workspace is in our options
+        if (workspacesToSearchByName.includes(workspace.display_name)) {
+          workspacesToSearchById.push(workspace.id);
+        }
+      });
+      Logger.trace({ workspacesToSearchById }, 'Loaded workspaces to search by id');
+    } catch (loadError) {
+      // If no workspaces were returned we will continue to allow the integration to run, but
+      // we still show an error so the admin knows that workspace filtering is not working.
+      if (loadError.noWorkspaces) {
+        workspacesToSearchById = [];
+      }
+      throw loadError;
+    }
+  }
+
+  previousWorkspacesOptionValue = options.workspaces;
+}
+
+async function getWorkspaces(options) {
+  return new Promise(function (resolve, reject) {
+    const requestOptions = {
+      uri: `${options.url}/rest/orgs/${options.orgId}/workspaces`,
+      method: 'GET',
+      json: true
+    };
+
+    Logger.trace({ requestOptions: requestOptions }, 'getWorkspaces request options');
+
+    authenticatedRequest(options, requestOptions, (err, resp, body) => {
+      // Note that a 404 will be returned if an incident is not found.  We treat this as error
+      // since we always expect the incident to be there for our use case
+      if (err || resp.statusCode !== 200) {
+        Logger.error(
+          {
+            err,
+            statusCode: resp ? resp.statusCode : 'unknown',
+            requestOptions,
+            body
+          },
+          `Error getting workspace`
+        );
+
+        return reject(
+          Object.assign(new Error(`Error fetching workspaces`), {
+            detail: `Error fetching workspaces`,
+            statusCode: resp ? resp.statusCode : 'unknown',
+            body,
+            err
+          })
+        );
+      }
+
+      if (!Array.isArray(body.entities)) {
+        return reject(
+          Object.assign(new Error(`Error fetching workspaces`), {
+            detail: `No workspaces could be loaded, unable to filter by workspace`,
+            statusCode: resp ? resp.statusCode : 'unknown',
+            body,
+            err,
+            noWorkspaces: true
+          })
+        );
+      }
+
+      Logger.trace({ workspaces: body.entities }, 'getWorkspaces result');
+
+      resolve(body.entities);
+    });
+  });
+}
+
 async function getIncidentById(incidentId, options) {
   return new Promise(function (resolve, reject) {
     const requestOptions = {
@@ -695,7 +787,7 @@ async function getIncidentById(incidentId, options) {
           `Error getting incident ${incidentId}`
         );
 
-        reject(
+        return reject(
           Object.assign(new Error(`Error fetching incident ${incidentId}`), {
             detail: `Error fetching incident ${incidentId}`,
             statusCode: resp ? resp.statusCode : 'unknown',
@@ -752,7 +844,7 @@ function getComments(incidentId, options, cb) {
 
 function onMessage(payload, options, cb) {
   options.url = options.url.endsWith('/') ? options.url.slice(0, -1) : options.url;
-  
+
   Logger.trace(`Received ${payload.type} message`);
   switch (payload.type) {
     case 'CREATE_COMMENT':
