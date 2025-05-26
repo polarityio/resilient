@@ -5,6 +5,8 @@
   "private": true,
   "dependencies": {
     "postman-request": "^2.88.1-postman.42",
-    "async": "^3.2.6"
+    "async": "^3.2.6",
+    "lodash.get": "^4.4.2",
+    "lodash.set": "^4.3.2"
   }
 }

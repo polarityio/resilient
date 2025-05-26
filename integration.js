@@ -1,17 +1,13 @@
 'use strict';
 
 const request = require('postman-request');
-const config = require('./config/config');
 const async = require('async');
-const fs = require('fs');
+const get = require('lodash.get');
+const set = require('lodash.set');
 
 const tokenCache = new Map();
 const MAX_AUTH_RETRIES = 2;
 const MAX_TOP_LEVEL_COMMENTS = 15;
-
-// Currently MAX_SUMMARY_TAGS and MAX_INCIDENTS_TO_RETURN should have the same value
-// Otherwise, we may show a summary tag for an incident we don't show information for
-const MAX_INCIDENTS_TO_RETURN = 10;
 
 let Logger;
 let requestWithDefaults;
@@ -24,33 +20,162 @@ let previousWorkspacesOptionValue = null;
 let workspacesToSearchById;
 let workspacesToSearchByName;
 
+const INCIDENT_FIELDS_TO_DISPLAY = [
+  {
+    property: 'result.description.content',
+    name: 'Description',
+    type: 'string',
+    // if set to true this field is manually displayed in the template
+    manualDisplay: true
+  },
+  {
+    property: 'result.name',
+    name: 'Description',
+    type: 'string',
+    // if set to true this field is manually displayed in the template
+    manualDisplay: true
+  },
+  {
+    property: 'result.discovered_date',
+    name: 'Discovered Date',
+    type: 'date'
+  },
+  {
+    property: 'result.create_date',
+    name: 'Created Date',
+    type: 'date'
+  },
+  {
+    property: 'result.due_date',
+    name: 'Due Date',
+    type: 'date'
+  },
+  {
+    property: 'result.confirmed',
+    name: 'Confirmed',
+    type: 'string'
+  },
+  {
+    property: 'result.workspace.name',
+    name: 'Workspace',
+    type: 'string'
+  },
+  {
+    property: 'result.is_scenario',
+    name: 'Scenario',
+    type: 'string'
+  },
+  {
+    property: 'result.severity_code.name',
+    name: 'Severity',
+    type: 'string'
+  },
+  {
+    property: 'result.creator.display_name',
+    name: 'Creator Name',
+    type: 'string'
+  },
+  {
+    property: 'result.creator.email',
+    name: 'Creator Email',
+    type: 'string'
+  },
+  {
+    property: 'result.phase_id.name',
+    name: 'Phase',
+    type: 'string'
+  },
+  {
+    property: 'result.plan_status_human',
+    name: 'Status',
+    type: 'string'
+  },
+  {
+    property: 'result.resolution_id.name',
+    name: 'Resolution Status',
+    type: 'string'
+  }
+];
+
+const SEARCH_MATCH_FIELDS_TO_DISPLAY = {
+  artifact: [
+    {
+      property: 'result.value',
+      name: 'Value',
+      type: 'string'
+    },
+    {
+      property: 'result.type.name',
+      name: 'Artifact Type',
+      type: 'string'
+    },
+    {
+      property: 'result.created',
+      name: 'Created',
+      type: 'date'
+    },
+    {
+      property: 'result.description.content',
+      name: 'Description',
+      type: 'block'
+    }
+  ],
+  task: [
+    {
+      property: 'result.name',
+      name: 'Name',
+      type: 'string'
+    },
+    {
+      property: 'result.active',
+      name: 'Active',
+      type: 'string'
+    },
+    {
+      property: 'result.closed_date',
+      name: 'Closed Date',
+      type: 'date'
+    },
+    {
+      property: 'result.due_date',
+      name: 'Due Date',
+      type: 'date'
+    },
+    {
+      property: 'result.instructions.content',
+      name: 'Instructions',
+      type: 'block'
+    }
+  ],
+  incident: [
+    {
+      property: 'match_field_name',
+      name: 'Match Field Name',
+      type: 'string'
+    }
+  ],
+  note: [
+    {
+      property: 'result.user_id.display_name',
+      name: 'Author',
+      type: 'string'
+    },
+    {
+      property: 'result.create_date',
+      name: 'Created Date',
+      type: 'date'
+    },
+    {
+      property: 'result.text.content',
+      name: 'Content',
+      type: 'block'
+    }
+  ]
+};
+
 function startup(logger) {
   Logger = logger;
   let defaults = {};
-
-  if (typeof config.request.cert === 'string' && config.request.cert.length > 0) {
-    defaults.cert = fs.readFileSync(config.request.cert);
-  }
-
-  if (typeof config.request.key === 'string' && config.request.key.length > 0) {
-    defaults.key = fs.readFileSync(config.request.key);
-  }
-
-  if (typeof config.request.passphrase === 'string' && config.request.passphrase.length > 0) {
-    defaults.passphrase = config.request.passphrase;
-  }
-
-  if (typeof config.request.ca === 'string' && config.request.ca.length > 0) {
-    defaults.ca = fs.readFileSync(config.request.ca);
-  }
-
-  if (typeof config.request.proxy === 'string' && config.request.proxy.length > 0) {
-    defaults.proxy = config.request.proxy;
-  }
-
-  if (typeof config.request.rejectUnauthorized === 'boolean') {
-    defaults.rejectUnauthorized = config.request.rejectUnauthorized;
-  }
 
   requestWithDefaults = request.defaults(defaults);
 
@@ -426,7 +551,9 @@ function _lookupEntity(entityObj, options, searchTypes, cb) {
             matchesByIncidentId,
             totalIncidentCount,
             incidents,
-            searchUrl
+            searchUrl,
+            INCIDENT_FIELDS_TO_DISPLAY,
+            SEARCH_MATCH_FIELDS_TO_DISPLAY
           }
         }
       });
@@ -434,6 +561,37 @@ function _lookupEntity(entityObj, options, searchTypes, cb) {
       return cb(error);
     }
   });
+}
+
+function removeExtraneousSearchFields(result) {
+  const resultType = result.type_id;
+  const fieldsToKeep = SEARCH_MATCH_FIELDS_TO_DISPLAY[resultType];
+  const trimmedResult = {
+    // always need to keep the type_id so the front end knows how to render the result
+    type_id: resultType
+  };
+  if (Array.isArray(fieldsToKeep)) {
+    fieldsToKeep.forEach((field) => {
+      set(trimmedResult, field.property, get(result, field.property));
+    });
+  }
+  return trimmedResult;
+}
+
+function removeExtraneousIncidentFields(incident) {
+  const trimmedIncident = {
+    type_id: 'incident',
+    org_id: incident.org_id,
+    obj_id: incident.id,
+    inc_id: incident.id,
+    inc_name: incident.name
+  };
+
+  INCIDENT_FIELDS_TO_DISPLAY.forEach((field) => {
+    set(trimmedIncident, field.property, get(incident, field.property));
+  });
+
+  return trimmedIncident;
 }
 
 /**
@@ -452,7 +610,7 @@ function _lookupEntity(entityObj, options, searchTypes, cb) {
  * @private
  */
 async function _getUniqueIncidentSearchResults(searchResults, options) {
-  // Set of incident IDs referenced by search results. All search results reference an incident Id but the referenced
+  // Set of incident IDs referenced by search results. All search results reference an incident ID but the referenced
   // incident ID may or may not be included in the search results.  For example, if a Note matches on the search term,
   // the Incident associated with the note might not be in the search results.  As a result, we would need to fetch
   // the incident associated with the Note.
@@ -468,7 +626,7 @@ async function _getUniqueIncidentSearchResults(searchResults, options) {
   // array of incident summary objects which contain the inc_id, and inc_name properties used to create summary tags
   const incidentSummaries = [];
   // list of all incidents referenced by the search
-  const incidents = [];
+  let incidents = [];
 
   searchResults.forEach((result) => {
     const referencedIncidentId = result.inc_id;
@@ -478,11 +636,10 @@ async function _getUniqueIncidentSearchResults(searchResults, options) {
     }
     referencedIncidentIdsSet.add(referencedIncidentId);
 
-    // uniqueIncidents[incidentId] = result;
     if (!Array.isArray(matchesByIncidentId[referencedIncidentId])) {
       matchesByIncidentId[referencedIncidentId] = [];
     }
-    matchesByIncidentId[referencedIncidentId].push(result);
+    matchesByIncidentId[referencedIncidentId].push(removeExtraneousSearchFields(result));
   });
 
   // These are the incidents that we need to fetch because they were referenced in our
@@ -518,14 +675,17 @@ async function _getUniqueIncidentSearchResults(searchResults, options) {
     }
   });
 
-  // Enrich our incidents
-  incidents.forEach((incident) => {
+  // Enrich incidents and then remove extraneous fields to reduce size of payload being returned
+  // to client
+  incidents = incidents.map((incident) => {
     if (incident.plan_status === 'A') {
       incident.plan_status_human = 'Active';
     }
     if (incident.plan_status === 'C') {
       incident.plan_status_human = 'Closed';
     }
+
+    return removeExtraneousIncidentFields(incident);
   });
 
   // Create our incident summaries which are used for creating summary tags
