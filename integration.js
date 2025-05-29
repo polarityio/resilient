@@ -19,8 +19,16 @@ let previousWorkspacesOptionValue = null;
 // List of workspace IDs that we will return results for
 let workspacesToSearchById;
 let workspacesToSearchByName;
+let workspaceLookupById = {};
 
 const INCIDENT_FIELDS_TO_DISPLAY = [
+  {
+    property: 'result.id',
+    name: 'ID',
+    type: 'string',
+    // if set to true this field is manually displayed in the template
+    manualDisplay: true
+  },
   {
     property: 'result.description.content',
     name: 'Description',
@@ -582,9 +590,9 @@ function removeExtraneousIncidentFields(incident) {
   const trimmedIncident = {
     type_id: 'incident',
     org_id: incident.org_id,
-    obj_id: incident.id,
-    inc_id: incident.id,
-    inc_name: incident.name
+    obj_id: incident.obj_id,
+    inc_id: incident.inc_id,
+    inc_name: incident.inc_name
   };
 
   INCIDENT_FIELDS_TO_DISPLAY.forEach((field) => {
@@ -660,6 +668,14 @@ async function _getUniqueIncidentSearchResults(searchResults, options) {
     // note, artifact, or task and then check if the workspace id on the incident is in our workspaces
     // to search.
     if (!workspacesToSearchById || workspacesToSearchById.includes(incident.workspace)) {
+      // incidents returned by the get incident endpoint don't include the workspace name so
+      // we add it in here.
+      incident.workspace = {
+        // incident.workspace is the workspace id
+        name: workspaceLookupById[incident.workspace],
+        id: incident.workspace
+      };
+
       incidents.push({
         type_id: 'incident',
         org_id: incident.org_id,
@@ -858,6 +874,7 @@ async function maybeLoadWorkspaces(options) {
         if (workspacesToSearchByName.includes(workspace.display_name)) {
           workspacesToSearchById.push(workspace.id);
         }
+        workspaceLookupById[workspace.id] = workspace.display_name;
       });
       Logger.trace({ workspacesToSearchById }, 'Loaded workspaces to search by id');
     } catch (loadError) {
