@@ -22,6 +22,13 @@ let workspacesToSearchByName;
 
 const INCIDENT_FIELDS_TO_DISPLAY = [
   {
+    property: 'result.id',
+    name: 'ID',
+    type: 'string',
+    // if set to true this field is manually displayed in the template
+    manualDisplay: true
+  },
+  {
     property: 'result.description.content',
     name: 'Description',
     type: 'string',
@@ -582,9 +589,9 @@ function removeExtraneousIncidentFields(incident) {
   const trimmedIncident = {
     type_id: 'incident',
     org_id: incident.org_id,
-    obj_id: incident.id,
-    inc_id: incident.id,
-    inc_name: incident.name
+    obj_id: incident.obj_id,
+    inc_id: incident.inc_id,
+    inc_name: incident.inc_name
   };
 
   INCIDENT_FIELDS_TO_DISPLAY.forEach((field) => {
