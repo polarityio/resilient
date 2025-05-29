@@ -49,24 +49,26 @@
             <pre>{{incident.result.description.content}}</pre>
           {{/if}}
           {{#each incidentFields as |fieldObj|}}
+            {{#unless fieldObj.manualDisplay}}
               {{#if (get incident fieldObj.property)}}
-                  {{#if (eq fieldObj.type "date")}}
-                      <div>
-                          <span class="p-key">{{fieldObj.name}}: </span>
-                          <span class="p-value">{{moment-format (get incident fieldObj.property) 'MM/DD/YYYY' timeZone=timezone}}</span>
-                      </div>
-                  {{else if (eq fieldObj.type "block")}}
-                      <div>
-                          <span class="p-key">{{fieldObj.name}}: </span>
-                          <pre>{{get incident fieldObj.property}}</pre>
-                      </div>
-                  {{else}}
-                      <div>
-                          <span class="p-key">{{fieldObj.name}}: </span>
-                          <span class="p-value">{{get incident fieldObj.property}}</span>
-                      </div>
-                  {{/if}}
+                {{#if (eq fieldObj.type "date")}}
+                  <div>
+                      <span class="p-key">{{fieldObj.name}}: </span>
+                      <span class="p-value">{{moment-format (get incident fieldObj.property) 'MM/DD/YYYY' timeZone=timezone}}</span>
+                  </div>
+                {{else if (eq fieldObj.type "block")}}
+                  <div>
+                      <span class="p-key">{{fieldObj.name}}: </span>
+                      <pre>{{get incident fieldObj.property}}</pre>
+                  </div>
+                {{else}}
+                  <div>
+                      <span class="p-key">{{fieldObj.name}}: </span>
+                      <span class="p-value">{{get incident fieldObj.property}}</span>
+                  </div>
+                {{/if}}
               {{/if}}
+            {{/unless}}
           {{/each}}
       </div>
   {{/if}}
